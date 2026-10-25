@@ -108,15 +108,15 @@ h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(26px, 
 .app {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr) 270px;
-  grid-template-areas: "ctrl stage colors";
+  grid-template-areas: "ctrl stage colors" "ctrl ai colors";
   gap: 20px;
   align-items: start;
 }
 @media (max-width: 1150px) {
-  .app { grid-template-columns: 290px minmax(0, 1fr); grid-template-areas: "ctrl stage" "ctrl colors"; }
+  .app { grid-template-columns: 290px minmax(0, 1fr); grid-template-areas: "ctrl stage" "ctrl ai" "ctrl colors"; }
 }
 @media (max-width: 760px) {
-  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "ctrl" "colors"; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "ai" "ctrl" "colors"; }
 }
 .panel {
   background: var(--card);
@@ -129,6 +129,7 @@ h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(26px, 
 .ctrl { grid-area: ctrl; }
 .stage { grid-area: stage; }
 .colors { grid-area: colors; }
+.ai { grid-area: ai; }
 
 .sec-title {
   font-family: var(--font-display); font-weight: 400; font-size: 15px; margin: 0;
@@ -291,6 +292,35 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 .ed-palette .sep { flex: 0 0 auto; width: 1.5px; height: 30px; align-self: center; background: var(--line); margin: 0 6px; }
 .ed-cur { font-size: 12.5px; color: var(--ink-soft); margin: 0; }
 
+/* AI とおしゃべり */
+.ai-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-log { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding: 2px; }
+.ai-log:empty { display: none; }
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.me { align-self: flex-end; background: var(--accent-soft); color: var(--ink); border-bottom-right-radius: 6px; }
+.msg.bot { align-self: flex-start; background: var(--card-soft); border: 1px solid var(--line); border-bottom-left-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
+.msg.bot .who { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--accent-deep); }
+.msg.bot .who .bead-sw { width: 16px; height: 16px; }
+.msg .acts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-soft); }
+.msg .acts li::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--mint); margin-right: 6px; vertical-align: middle; }
+.msg .err { color: var(--accent-deep); font-size: 13px; }
+.thinking { display: inline-flex; gap: 5px; align-items: center; color: var(--ink-soft); font-size: 13px; }
+.thinking i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: hop 1s infinite ease-in-out; }
+.thinking i:nth-child(2) { animation-delay: .15s; background: var(--mint); }
+.thinking i:nth-child(3) { animation-delay: .3s; background: #F9D923; }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.ai-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.ai-chips button { font: inherit; font-size: 13px; font-weight: 700; border: 1.5px dashed var(--line); background: var(--card); color: var(--accent-deep); border-radius: 999px; padding: 8px 12px; min-height: 40px; cursor: pointer; }
+.ai-chips button:hover { border-color: var(--accent); }
+.ai-form { display: flex; gap: 8px; align-items: flex-end; }
+.ai-form textarea {
+  flex: 1; min-width: 0; resize: none; font: inherit; font-size: 15px; color: var(--ink);
+  background: var(--card-soft); border: 1.5px solid var(--line); border-radius: 16px; padding: 10px 14px; min-height: 48px; max-height: 140px;
+}
+.ai-form textarea:focus { outline: none; border-color: var(--accent); }
+.ai-form .primary, .ai-form .ghost { flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .thinking i { animation: none; } }
+
 /* modal */
 .modal { position: fixed; inset: 0; background: rgba(40, 15, 28, .55); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 50; }
 .modal-card { background: var(--card); border-radius: var(--r-lg); padding: 20px; max-width: 760px; width: 100%; max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); }
@@ -385,6 +415,26 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
       <div class="board-wrap" id="boardWrap"><canvas id="board" role="button" tabindex="0" aria-label="ビーズ図案のプレビュー。押すと拡大して手直しできます"></canvas></div>
       <button class="primary" type="button" id="editBtn">拡大して手直しする</button>
       <p class="note">図案を押すと、拡大して1マスずつ手直しできます。色の見本はおおよその色で、メーカーの実際の色とは少しちがいます。</p>
+    </section>
+
+    <section class="panel ai" id="aiPanel" aria-label="AIとおしゃべりでつくる" hidden>
+      <div class="ai-head">
+        <h2 class="sec-title">AIとおしゃべりでつくる</h2>
+        <button class="ghost" type="button" id="aiUndo" disabled>AIの変更をもどす</button>
+      </div>
+      <div class="ai-log" id="aiLog" aria-live="polite"></div>
+      <div class="ai-chips" id="aiChips">
+        <button type="button">背景を水色にして</button>
+        <button type="button">目をハートにして</button>
+        <button type="button">色を6色にへらして</button>
+        <button type="button">15×15で小さなさくらんぼを作って</button>
+      </div>
+      <form class="ai-form" id="aiForm">
+        <textarea id="aiInput" rows="1" placeholder="どうしたい？ 例: リボンをつけて" aria-label="AIへのお願い"></textarea>
+        <button class="primary" type="submit" id="aiSend">送る</button>
+        <button class="ghost" type="button" id="aiStop" hidden>止める</button>
+      </form>
+      <p class="note">AIは、このページを開いている人のClaudeの利用枠を使います。はじめて使うときに確認が出ます。</p>
     </section>
 
     <section class="panel colors" aria-label="使う色と数">
@@ -490,6 +540,9 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   };
   const $ = id => document.getElementById(id);
   const board = $('board'), ctx = board.getContext('2d');
+  // AI とおしゃべりの状態。changedAt は AI が変更したときの「もどす」記録の数
+  const ai = { sample: null, busy: false, ctl: null, turns: [], turnSaved: false, changedAt: 0, addAct: () => {} };
+  let dlCap = null;
 
   // ---- 見本画像（いちごちゃん） ----
   function sampleImage() {
@@ -856,11 +909,21 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   // 塗る
   let strokeSaved = false, strokeDone = false;
   function beginStroke() { strokeSaved = false; strokeDone = false; }
+  // 「もどす」用の記録。AIが大きさの違う図案を作ることもあるので、マスと一緒に大きさも残す
+  const snap = () => ({ g: S.grid.slice(), c: S.cols, r: S.rows });
+  function restore(s) {
+    const resized = s.c !== S.cols || s.r !== S.rows;
+    S.grid = s.g; S.cols = s.c; S.rows = s.r;
+    if (resized) { layout(); if (ed.open) { ed.W = 0; edResize(); } }
+  }
   function record() {
-    S.history.push(S.grid.slice()); if (S.history.length > 60) S.history.shift();
+    S.history.push(snap()); if (S.history.length > 60) S.history.shift();
     S.future = []; refreshButtons();
   }
-  function refreshButtons() { $('undoBtn').disabled = !S.history.length; $('redoBtn').disabled = !S.future.length; }
+  function refreshButtons() {
+    $('undoBtn').disabled = !S.history.length; $('redoBtn').disabled = !S.future.length;
+    $('aiUndo').disabled = !S.history.length || !ai.changedAt || ai.changedAt !== S.history.length;
+  }
   function floodFill(i, v) {
     const target = S.grid[i]; if (target === v) return false;
     const stack = [i];
@@ -880,7 +943,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
     if (S.tool === 'picker') { if (S.grid[i] >= 0) { setColor(S.grid[i]); strokeDone = true; } return; }
     if (S.tool === 'fill') {
       strokeDone = true;
-      const before = S.grid.slice();
+      const before = snap();
       if (floodFill(i, S.color)) { S.history.push(before); S.future = []; refreshButtons(); edDraw(); }
       return;
     }
@@ -889,8 +952,8 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
     if (!strokeSaved) { record(); strokeSaved = true; }
     S.grid[i] = v; edDraw();
   }
-  function undo() { if (!S.history.length) return; S.future.push(S.grid); S.grid = S.history.pop(); refreshButtons(); edDraw(); }
-  function redo() { if (!S.future.length) return; S.history.push(S.grid); S.grid = S.future.pop(); refreshButtons(); edDraw(); }
+  function undo() { if (!S.history.length) return; S.future.push(snap()); restore(S.history.pop()); refreshButtons(); edDraw(); }
+  function redo() { if (!S.future.length) return; S.history.push(snap()); restore(S.future.pop()); refreshButtons(); edDraw(); }
 
   // 指の操作: 2本指 = 拡大・移動 / 1本指 = 塗る（「移動」のときは動かす）
   // ピンチしようとして先に触れた1本目の指で塗ってしまわないよう、少し動くか離すまで塗らない
@@ -998,9 +1061,21 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
     $('modal').hidden = false; $('closeModal').focus();
   }
   $('exportBtn').addEventListener('click', exportImage);
-  $('downloadBtn').addEventListener('click', () => {
+  $('downloadBtn').addEventListener('click', async () => {
+    const filename = `beads_${S.cols}x${S.rows}.png`;
+    if (dlCap) {
+      // Claude のページの中では、見ている人に確認してから保存してもらう
+      try {
+        const blob = await (await fetch(exportURL)).blob();
+        await dlCap.save({ filename, data: blob });
+        toast('保存しました');
+      } catch (e) {
+        if (e?.code !== 'declined') toast('保存できませんでした。画像を長押しして保存してください');
+      }
+      return;
+    }
     const a = document.createElement('a');
-    a.href = exportURL; a.download = `beads_${S.cols}x${S.rows}.png`;
+    a.href = exportURL; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
   });
   $('closeModal').addEventListener('click', () => { $('modal').hidden = true; });
@@ -1073,8 +1148,264 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
   new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  // ほかのページの中に埋め込まれているときは、ダウンロードが止められていることが多いので長押し保存だけにする
+  // ---- AI とおしゃべりでつくる ----
+  // AI に「ページの道具」を渡し、AI が道具を呼ぶと、このページの中で図案が変わる
+  const SYM_INDEX = new Map(PAL.map((p, i) => [p.sym, i]));
+  const NAME_INDEX = new Map(PAL.map((p, i) => [p.n, i]));
+  const EMPTY_WORDS = ['.', '', '空き', '空きマス', 'なし', 'empty', 'none'];
+  function colorArg(v) {
+    const s = String(v ?? '').trim();
+    if (EMPTY_WORDS.includes(s)) return -1;
+    if (SYM_INDEX.has(s)) return SYM_INDEX.get(s);
+    if (NAME_INDEX.has(s)) return NAME_INDEX.get(s);
+    throw new Error(`知らない色です: ${s}。色の記号（例: K）か名前（例: あか）、空きマスは "." で指定してください`);
+  }
+  const int = (v, name, min, max) => {
+    const n = Math.round(Number(v));
+    if (!Number.isFinite(n) || n < min || n > max) throw new Error(`${name} は ${min}〜${max} の整数にしてください`);
+    return n;
+  };
+  function patternText() {
+    const lines = [`大きさ: 横${S.cols} × 縦${S.rows}`];
+    const u = usage();
+    lines.push('使っている色: ' + (u.length ? u.map(([p, n]) => `${PAL[p].sym}=${PAL[p].n}(${n}粒)`).join(', ') : 'なし'));
+    for (let y = 0; y < S.rows; y++) {
+      let row = '';
+      for (let x = 0; x < S.cols; x++) { const p = S.grid[y * S.cols + x]; row += p < 0 ? '.' : PAL[p].sym; }
+      lines.push(`y${String(y).padStart(2, '0')} ${row}`);
+    }
+    return lines.join('\n');
+  }
+  const AI_RULES = `あなたは「ぽちっとビーズ」のAIです。アイロンビーズの図案づくりを手伝います。
+相手は図案を作っている人（女の子が多い）です。やさしく、短い日本語で話してください。
+
+## 図案のきまり
+- 図案はマス目で、1マスがビーズ1粒。x は左から右、y は上から下で、どちらも 0 から数えます。
+- 色は次の記号1文字で表します。大文字と小文字は別の色です。"." は空きマス（ビーズを置かない）。
+${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
+- 「いまの図案」は1行が y の1行で、行の頭の y00 などは行番号です（図案の一部ではありません）。
+
+## 図案を変えるとき
+必ず道具を使ってください。返事の文章に図案を書いても、図案は変わりません。
+- 一部を直す: set_cells、fill_area、replace_color
+- 形をまとめて描く: draw_rows（描く行をぜんぶ1回の呼び出しで渡す）
+- 新しく作る: new_pattern で大きさを決めてから、draw_rows で全体を1回で描く。輪郭をはっきりさせ、色は少なめに。左右対称のものは対称に描く。
+- 色を減らす: reduce_colors
+- 目・口・リボンなど小さな部分は、まわりと区別しやすい色を選ぶ。
+
+## 返事
+- 道具を使い終わったら、何をしたかを1〜2文で伝える。図案の文字列は返事に書かない。
+- お願いがあいまいなときは、いちばん自然な形で作ってから「〜にもできるよ」と一言そえる。
+- 図案と関係ないお願いには、図案づくりのお手伝いをしていることをやさしく伝える。`;
+
+  /** AI による変更。1回の返事の中の変更は、まとめて1回で「もどす」ことができる。 */
+  function aiChange(fn) {
+    if (!ai.turnSaved) { record(); ai.turnSaved = true; ai.changedAt = S.history.length; }
+    const before = [S.cols, S.rows];
+    const msg = fn();
+    if (before[0] !== S.cols || before[1] !== S.rows) layout();
+    S.animStart = 0; loop(); refreshMeta(); refreshButtons(); edDraw();
+    ai.addAct(msg);
+    return msg;
+  }
+  const colorProp = { type: 'string', description: '色の記号か名前。空きマスは "."' };
+  const AI_TOOLS = [
+    {
+      name: 'set_cells',
+      description: '指定したマスを指定した色にする。細かい手直し用（一度に800マスまで）。',
+      inputSchema: { type: 'object', properties: { cells: { type: 'array', items: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, color: colorProp }, required: ['x', 'y', 'color'] } } }, required: ['cells'] },
+      execute({ cells }) {
+        if (!Array.isArray(cells) || !cells.length) throw new Error('cells が空です');
+        if (cells.length > 800) throw new Error('一度に塗れるのは800マスまでです');
+        const list = cells.map(c => [int(c.x, 'x', 0, S.cols - 1), int(c.y, 'y', 0, S.rows - 1), colorArg(c.color)]);
+        return aiChange(() => {
+          let n = 0;
+          for (const [x, y, v] of list) { const i = y * S.cols + x; if (S.grid[i] !== v) { S.grid[i] = v; n++; } }
+          return `${n}マスを塗りました`;
+        });
+      },
+    },
+    {
+      name: 'draw_rows',
+      description: '何行かをまとめて描く。rows の1文字が1マス（色の記号、空きマスは "."）。start_y の行から下へ、start_x の列（省略で0）から右へ書く。図案からはみ出した分は無視。',
+      inputSchema: { type: 'object', properties: { start_y: { type: 'integer' }, start_x: { type: 'integer' }, rows: { type: 'array', items: { type: 'string' } } }, required: ['start_y', 'rows'] },
+      execute({ start_y, start_x, rows }) {
+        const y0 = int(start_y, 'start_y', 0, S.rows - 1);
+        const x0 = start_x == null ? 0 : int(start_x, 'start_x', 0, S.cols - 1);
+        if (!Array.isArray(rows) || !rows.length) throw new Error('rows が空です');
+        const parsed = rows.map((r, k) => [...String(r)].map(ch => {
+          if (ch === '.') return -1;
+          if (!SYM_INDEX.has(ch)) throw new Error(`${k + 1}番目の行に知らない記号「${ch}」があります`);
+          return SYM_INDEX.get(ch);
+        }));
+        return aiChange(() => {
+          let n = 0;
+          parsed.forEach((row, k) => {
+            const y = y0 + k; if (y >= S.rows) return;
+            row.forEach((v, j) => { const x = x0 + j; if (x < S.cols) { S.grid[y * S.cols + x] = v; n++; } });
+          });
+          return `${parsed.length}行（${n}マス）を描きました`;
+        });
+      },
+    },
+    {
+      name: 'replace_color',
+      description: '図案の中のある色を、ぜんぶ別の色に変える。背景の色を変えるときなど。空きマスは "."。',
+      inputSchema: { type: 'object', properties: { from: colorProp, to: colorProp }, required: ['from', 'to'] },
+      execute({ from, to }) {
+        const a = colorArg(from), b = colorArg(to);
+        if (!S.grid.some(v => v === a)) throw new Error(`「${from}」のマスはありません`);
+        return aiChange(() => {
+          let n = 0;
+          for (let i = 0; i < S.grid.length; i++) if (S.grid[i] === a) { S.grid[i] = b; n++; }
+          return `${a < 0 ? '空きマス' : PAL[a].n}の${n}マスを${b < 0 ? '空きマス' : PAL[b].n}にしました`;
+        });
+      },
+    },
+    {
+      name: 'fill_area',
+      description: '(x, y) のマスと上下左右でつながっている同じ色のマスを、まとめて塗る（塗りつぶし）。',
+      inputSchema: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, color: colorProp }, required: ['x', 'y', 'color'] },
+      execute({ x, y, color }) {
+        const i = int(y, 'y', 0, S.rows - 1) * S.cols + int(x, 'x', 0, S.cols - 1), v = colorArg(color);
+        if (S.grid[i] === v) throw new Error('そのマスはもうその色です');
+        return aiChange(() => { floodFill(i, v); return '塗りつぶしました'; });
+      },
+    },
+    {
+      name: 'new_pattern',
+      description: '新しい空っぽの図案を作る（いまの図案は消える）。width と height は 5〜58。このあと draw_rows で描く。',
+      inputSchema: { type: 'object', properties: { width: { type: 'integer' }, height: { type: 'integer' } }, required: ['width', 'height'] },
+      execute({ width, height }) {
+        const w = int(width, 'width', 5, 58), h = int(height, 'height', 5, 58);
+        return aiChange(() => {
+          S.cols = w; S.rows = h; S.grid = new Int16Array(w * h).fill(-1);
+          return `横${w}×縦${h}の新しい図案を用意しました`;
+        });
+      },
+    },
+    {
+      name: 'reduce_colors',
+      description: '使う色を max_colors 色まで減らす。なくなる色のマスは、残した色のうち一番近い色にする。',
+      inputSchema: { type: 'object', properties: { max_colors: { type: 'integer' } }, required: ['max_colors'] },
+      execute({ max_colors }) {
+        const k = int(max_colors, 'max_colors', 1, 30);
+        const filled = [...S.grid].filter(v => v >= 0);
+        if (!filled.length) throw new Error('図案にビーズがありません');
+        const keep = chooseColors(filled.map(p => PAL[p].lab), k);
+        return aiChange(() => {
+          for (let i = 0; i < S.grid.length; i++) if (S.grid[i] >= 0) S.grid[i] = nearest(PAL[S.grid[i]].lab, keep);
+          return `${usage().length}色にへらしました`;
+        });
+      },
+    },
+    {
+      name: 'get_pattern',
+      description: 'いまの図案を文字で返す（形式はお願いについている「いまの図案」と同じ）。変更のあとで確かめたいときに使う。',
+      execute: () => patternText(),
+    },
+  ];
+
+  const aiLog = $('aiLog');
+  function addMsg(text) {
+    const el = document.createElement('div');
+    el.className = 'msg me'; el.textContent = text;
+    aiLog.appendChild(el); aiLog.scrollTop = aiLog.scrollHeight;
+  }
+  function addBot() {
+    const el = document.createElement('div');
+    el.className = 'msg bot';
+    el.innerHTML = '<span class="who"><span class="bead-sw" style="--c:#EE4F86"></span>ぽちっとビーズのAI</span><span class="body"><span class="thinking"><i></i><i></i><i></i>考えています</span></span><ul class="acts"></ul>';
+    aiLog.appendChild(el); aiLog.scrollTop = aiLog.scrollHeight;
+    const body = el.querySelector('.body'), acts = el.querySelector('.acts');
+    let hasText = false;
+    return {
+      setText(t) { if (!t || !t.trim()) return; hasText = true; body.textContent = t.trim(); aiLog.scrollTop = aiLog.scrollHeight; },
+      addAct(t) { const li = document.createElement('li'); li.textContent = t; acts.appendChild(li); aiLog.scrollTop = aiLog.scrollHeight; },
+      setError(t) { const p = document.createElement('span'); p.className = 'err'; p.textContent = t; el.appendChild(p); },
+      done() { if (!hasText) body.textContent = acts.children.length ? 'できました' : ''; if (!body.textContent) body.remove(); },
+    };
+  }
+  const AI_STOP_FOR_GOOD = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'tools_unavailable'];
+  function aiErrorText(code) {
+    switch (code) {
+      case 'cancelled': return '止めました';
+      case 'not_granted': return 'AIを使うことが許可されませんでした。';
+      case 'sampling_disabled': case 'not_declared': case 'capability_disabled': case 'capability_removed': case 'tools_unavailable':
+        return 'このページではAIが使えません。';
+      case 'rate_limited': return 'いま混み合っています。少し時間をおいて、もう一度送ってください。';
+      case 'session_expired': return 'もう一度ログインしてから送ってください。';
+      case 'refused': return 'そのお願いにはこたえられませんでした。ちがう言い方で試してみてください。';
+      case 'empty_completion': return 'うまく返事ができませんでした。お願いを短くして試してみてください。';
+      case 'prompt_too_large': return '図案が大きすぎて読み切れませんでした。サイズを小さくして試してください。';
+      default: return 'うまくいきませんでした。もう一度送ってみてください。';
+    }
+  }
+  function setAiBusy(b) {
+    $('aiSend').hidden = b; $('aiStop').hidden = !b;
+    $('aiInput').disabled = b;
+    document.querySelectorAll('#aiChips button').forEach(x => x.disabled = b);
+  }
+  async function aiSend(text) {
+    text = text.trim();
+    if (!text || ai.busy || !ai.sample) return;
+    ai.busy = true; ai.turnSaved = false; setAiBusy(true);
+    addMsg(text);
+    const bot = addBot();
+    ai.addAct = t => bot.addAct(t);
+    const ctl = ai.ctl = new AbortController();
+    // 指示はいつも先頭に。会話は新しいほうから10ターン分だけ送る
+    const input = [
+      { role: 'user', content: AI_RULES },
+      ...ai.turns.slice(-10),
+      { role: 'user', content: `いまの図案:\n${patternText()}\n\nお願い: ${text}` },
+    ];
+    try {
+      const { text: answer } = await ai.sample(input, { tools: AI_TOOLS, signal: ctl.signal, onText: ({ text: t }) => bot.setText(t) });
+      bot.setText(answer);
+      ai.turns.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
+    } catch (e) {
+      bot.setText(e?.text ?? '');
+      bot.setError(aiErrorText(e?.code));
+      if (AI_STOP_FOR_GOOD.includes(e?.code)) { ai.sample = null; $('aiForm').hidden = true; $('aiChips').hidden = true; }
+    } finally {
+      ai.busy = false; ai.addAct = () => {};
+      setAiBusy(false); bot.done();
+      if (ai.sample) $('aiInput').focus();
+    }
+  }
+  const aiInput = $('aiInput');
+  const growInput = () => { aiInput.style.height = 'auto'; aiInput.style.height = Math.min(140, aiInput.scrollHeight + 2) + 'px'; };
+  aiInput.addEventListener('input', growInput);
+  aiInput.addEventListener('keydown', e => {
+    // 日本語の変換を確定する Enter では送らない
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); $('aiForm').requestSubmit(); }
+  });
+  $('aiForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const t = aiInput.value; aiInput.value = ''; growInput();
+    aiSend(t);
+  });
+  $('aiChips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) aiSend(b.textContent); });
+  $('aiStop').addEventListener('click', () => ai.ctl?.abort());
+  $('aiUndo').addEventListener('click', () => {
+    undo(); ai.changedAt = 0;
+    S.animStart = 0; loop(); refreshMeta(); refreshButtons();
+    toast('AIの変更をもどしました');
+  });
+
+  // ほかのページの中に埋め込まれているときは、ふつうのダウンロードが止められていることが多い
   try { if (window.self !== window.top) $('downloadBtn').hidden = true; } catch { $('downloadBtn').hidden = true; }
+  // Claude のページとして開いているときだけ、AI と保存の機能が使える
+  if (window.claude?.use) {
+    claude.use('downloads').then(d => { dlCap = d; if (d) $('downloadBtn').hidden = false; }).catch(() => {});
+    claude.use('sample').then(async s => {
+      if (!s) return;
+      const lim = await s.limits().catch(() => null);
+      if (!lim?.tools) return;
+      ai.sample = s; $('aiPanel').hidden = false;
+    }).catch(() => {});
+  }
 
   // ---- はじめは見本で ----
   const sample = sampleImage();
