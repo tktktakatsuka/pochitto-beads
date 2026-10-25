@@ -329,6 +329,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 .clip-btn.full, .clip-btn.busy { opacity: .4; pointer-events: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ai-attach { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 20px; padding: 6px 12px; background: var(--card-soft); border-radius: var(--r-md); }
 .ai-thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-thumbs:empty { display: none; }
 .ai-thumb { position: relative; width: 60px; height: 60px; }
@@ -454,6 +455,10 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
         <button type="button">色を6色にへらして</button>
         <button type="button">15×15で小さなさくらんぼを作って</button>
       </div>
+      <div class="ai-opts">
+        <label class="toggle"><span class="toggle-text"><b>じっくり考える</b><span>きれいになるけど、返事に時間がかかる</span></span><input type="checkbox" id="aiDeep" checked><span class="sw"></span></label>
+        <label class="toggle" id="aiReviewRow" hidden><span class="toggle-text"><b>できたら見直す</b><span>できた図案をAIが見て直す。さらに時間がかかる</span></span><input type="checkbox" id="aiReview" checked><span class="sw"></span></label>
+      </div>
       <div class="ai-attach" id="aiAttach" hidden>
         <div class="ai-thumbs" id="aiThumbs"></div>
         <button class="link-btn" type="button" id="aiAttachSrc">読み込んだ画像をつける</button>
@@ -578,7 +583,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 
   // ---- 状態 ----
   const S = {
-    src: null, srcData: null, width: 29, maxColors: 12, vivid: 1, removeBg: true, keepOutline: true, dither: false,
+    src: null, srcData: null, width: 29, maxColors: 12, vivid: 1, removeBg: true, keepOutline: true, dither: false, minCover: 0.5,
     cols: 0, rows: 0, grid: null, view: 'bead', tool: 'pen', color: PAL.findIndex(p => p.n === 'ピンク'),
     history: [], future: [], animStart: 0, cell: 10
   };
@@ -659,7 +664,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
       BIN.cnt[bin]++; BIN.r[bin] += r; BIN.g[bin] += g; BIN.b[bin] += b;
     }
     let result = null;
-    if (opaque > transparent) {
+    if (opaque > 0 && (S.minCover >= 0.5 ? opaque > transparent : opaque >= (opaque + transparent) * S.minCover)) {
       let best = -1, bestCount = 0;
       for (let t = 0; t < tn; t++) { const c = neighborhood(BIN.touched[t]); if (c > bestCount) { bestCount = c; best = BIN.touched[t]; } }
       if (bestCount < opaque * DOMINANT_MIN_SHARE) result = [aR / opaque, aG / opaque, aB / opaque];
@@ -959,7 +964,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   function beginStroke() { strokeSaved = false; strokeDone = false; }
   // 「もどす」用の記録。AIが大きさの違う図案を作ったり、別の画像から作り直したりもするので、
   // マスと一緒に大きさ・元の画像・設定も残す（画像は参照だけなので軽い）
-  const SETTING_KEYS = ['width', 'maxColors', 'vivid', 'removeBg', 'keepOutline', 'dither'];
+  const SETTING_KEYS = ['width', 'maxColors', 'vivid', 'removeBg', 'keepOutline', 'dither', 'minCover'];
   const snap = () => ({
     g: S.grid.slice(), c: S.cols, r: S.rows,
     src: S.src, sd: S.srcData, thumb: $('thumb').src, name: $('srcName').textContent,
@@ -1159,7 +1164,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 
   // ---- 画像の読み込み ----
   function setSource(src, name, thumbUrl) {
-    S.src = src; S.srcData = readPixels(src);
+    S.src = src; S.srcData = readPixels(src); S.minCover = 0.5;
     $('thumb').src = thumbUrl; $('srcName').textContent = name;
     convert();
   }
@@ -1289,22 +1294,72 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
 
 ## 図案を変えるとき
 必ず道具を使ってください。返事の文章に図案を書いても、図案は変わりません。
-- 一部を直す: set_cells、fill_area、replace_color
-- 形をまとめて描く: draw_rows（描く行をぜんぶ1回の呼び出しで渡す）
-- 新しく作る: new_pattern で大きさを決めてから、draw_rows で全体を1回で描く。輪郭をはっきりさせ、色は少なめに。左右対称のものは対称に描く。
+- 新しく作る・画像から作る: draw_picture で、SVG の絵を描く（くわしくは下）。マスを1つずつ置くより、ずっときれいにできる。
+- 一部を直す: set_cells、fill_area、replace_color、draw_rows
 - 色を減らす: reduce_colors
 - 目・口・リボンなど小さな部分は、まわりと区別しやすい色を選ぶ。
 
+## draw_picture の描きかた
+アイロンビーズの図案は、写真ではなく「シンプルなイラスト」にするとかわいくなる。
+- viewBox は "0 0 横のビーズ数 縦のビーズ数"。1 が ビーズ1粒の大きさ。29×29 なら viewBox="0 0 29 29"。
+- 細かすぎる部分は作らない。どの部分も幅 1 以上。目は 1〜2 マス。
+- マス目にそろえて描く。幅 1 の線は、中心を .5 にする（例: x1="7.5" x2="7.5"）か、x・y が整数で幅と高さが 1 の rect で描く。整数の位置に幅 1 の線を引くと、2マスにまたがってにじむ。
+- 色は fill と stroke に、上の色の表の16進数（例 #D7263D）だけを使う。色数は少なめ（多くても8色くらい）。
+- 背景は描かない（何もないところは空きマスになる）。主役を大きく、まわりに1マスくらいすき間をあける。
+- 使わないもの: グラデーション、ぼかし、影、半透明、文字、画像。
+- 左右対称のもの（顔・ハート・くだものなど）は、左右対称に描く。
+
 ## 画像がついているとき
 - お願いに「ついている画像」とあれば、その画像を見てこたえる。画像は「画像1」「画像2」…の順番。
-- 画像をそのまま図案にしたいときは convert_image を使う（image に画像の番号）。大きさや色数は、お願いに合わせて決める。そのあとの手直しは、ほかの道具で。
-- 画像を参考に自分で描くとき（「この絵みたいなリボンをつけて」など）は、画像を見て set_cells や draw_rows で描く。
+- 写真やこまかい絵を図案にするときは、画像をよく見て、特徴（形・色・目や模様）をつかんだシンプルなイラストを draw_picture で描く。
+- もとの画像がもともとドット絵や、色の少ないシンプルなイラストで「そのまま」がよいときだけ、convert_image を使う。
+- 画像を参考に一部を描き足すとき（「この絵みたいなリボンをつけて」など）は、set_cells や draw_rows で描く。
+- 「いまの図案の画像」がついているときは、それが今の図案の見た目（灰色の市松模様は空きマス）。形を確かめるのに使う。
 - 画像に写っている人について、だれなのかを推測したり言ったりしない。
 
 ## 返事
 - 道具を使い終わったら、何をしたかを1〜2文で伝える。図案の文字列は返事に書かない。
 - お願いがあいまいなときは、いちばん自然な形で作ってから「〜にもできるよ」と一言そえる。
 - 図案と関係ないお願いには、図案づくりのお手伝いをしていることをやさしく伝える。`;
+
+  /**
+   * AI が描いた SVG を、変換に使える画像にする。<img> として読むので SVG の中のスクリプトは動かないが、
+   * 念のため script・foreignObject・外のファイルを読む指定は取りのぞく。
+   * viewBox の 1 をビーズ1粒として、1粒 16px の大きさで描く（変換のときに1マス分の色を拾いやすい）。
+   */
+  async function svgToImage(text) {
+    if (text.length > 100000) throw new Error('SVG が長すぎます。もっとシンプルに描いてください');
+    const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    const root = doc.documentElement;
+    if (root.nodeName !== 'svg' || doc.querySelector('parsererror')) throw new Error('SVG として読めませんでした。<svg ...> から </svg> までを正しく書いてください');
+    root.querySelectorAll('script, foreignObject, image, use[href^="http"]').forEach(n => n.remove());
+    root.querySelectorAll('*').forEach(n => [...n.attributes].forEach(a => { if (/^on/i.test(a.name) || /^\s*(javascript|https?):/i.test(a.value)) n.removeAttribute(a.name); }));
+    const vb = (root.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+    if (vb.length !== 4 || !(vb[2] > 0 && vb[3] > 0)) throw new Error('viewBox="0 0 横のビーズ数 縦のビーズ数" を書いてください');
+    const cols = int(vb[2], 'viewBox の横', 5, 58);
+    if (vb[3] > 58) throw new Error('viewBox の縦は 58 までにしてください');
+    if (!root.getAttribute('xmlns')) root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    root.setAttribute('width', vb[2] * 16); root.setAttribute('height', vb[3] * 16);
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(root));
+    const img = await loadImage(url).catch(() => { throw new Error('SVG を絵にできませんでした。書きかたを確かめてください'); });
+    return { img, url, cols };
+  }
+
+  /** いまの図案を、AI が見るための画像にする。空きマスは灰色の市松模様、5マスごとに線。 */
+  function renderPatternBlob() {
+    const c = Math.max(6, Math.min(24, Math.floor(720 / Math.max(S.cols, S.rows))));
+    const cv = document.createElement('canvas'); cv.width = S.cols * c; cv.height = S.rows * c;
+    const g = cv.getContext('2d');
+    for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) {
+      const p = S.grid[y * S.cols + x];
+      g.fillStyle = p >= 0 ? PAL[p].h : ((x + y) % 2 ? '#E4E4E4' : '#F4F4F4');
+      g.fillRect(x * c, y * c, c, c);
+    }
+    g.fillStyle = 'rgba(0,0,0,.18)';
+    for (let x = 5; x < S.cols; x += 5) g.fillRect(x * c, 0, 1, cv.height);
+    for (let y = 5; y < S.rows; y += 5) g.fillRect(0, y * c, cv.width, 1);
+    return new Promise(ok => cv.toBlob(ok, 'image/png'));
+  }
 
   /** AI による変更。1回の返事の中の変更は、まとめて1回で「もどす」ことができる。 */
   function aiChange(fn) {
@@ -1408,6 +1463,27 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
       },
     },
     {
+      name: 'draw_picture',
+      description: 'SVG で描いた絵を図案にする（いまの図案は置きかわる）。viewBox は "0 0 横のビーズ数 縦のビーズ数"（横は 5〜58）。色は色の表の16進数だけ、背景は描かない。新しく作るときと、画像から作るときはこれを使う。',
+      inputSchema: { type: 'object', properties: {
+        svg: { type: 'string', description: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29">…</svg>' },
+        max_colors: { type: 'integer', description: '使う色の数(2〜30)。省略すると絵の色数に合わせる' },
+      }, required: ['svg'] },
+      async execute({ svg, max_colors }) {
+        const pic = await svgToImage(String(svg ?? ''));
+        const mc = max_colors == null ? 30 : int(max_colors, 'max_colors', 2, 30);
+        return aiChange(() => {
+          S.src = pic.img; S.srcData = readPixels(pic.img);
+          $('thumb').src = pic.url; $('srcName').textContent = 'AIが描いた絵';
+          S.width = pic.cols; S.maxColors = mc; S.removeBg = false; S.dither = false;
+          // 境目にかかった細い線が消えないよう、半分より少しでも塗られていればビーズを置く
+          S.minCover = 0.45;
+          convert(true, true); syncControls();
+          return `絵を描いて、${S.cols}×${S.rows}マス・${usage().length}色の図案にしました`;
+        });
+      },
+    },
+    {
       name: 'convert_image',
       description: '画像から図案を作り直す（いまの図案は置きかわる）。image は 0 ならいま読み込んでいる画像、1 以上なら今回のお願いについている画像の番号。width は横のビーズ数(5〜58)、max_colors は使う色の数(2〜30)。省略した設定はいまのまま。',
       inputSchema: { type: 'object', properties: {
@@ -1424,7 +1500,7 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
         else if (!S.srcData) throw new Error('読み込んでいる画像がありません');
         return aiChange(() => {
           if (img) {
-            S.src = img; S.srcData = readPixels(img);
+            S.src = img; S.srcData = readPixels(img); S.minCover = 0.5;
             $('thumb').src = att.url; $('srcName').textContent = att.name;
           }
           S.width = w; S.maxColors = mc;
@@ -1503,7 +1579,7 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
     let hasText = false;
     return {
       setText(t) { if (!t || !t.trim()) return; hasText = true; body.textContent = t.trim(); aiLog.scrollTop = aiLog.scrollHeight; },
-      addAct(t) { const li = document.createElement('li'); li.textContent = t; acts.appendChild(li); aiLog.scrollTop = aiLog.scrollHeight; },
+      addAct(t) { const li = document.createElement('li'); li.textContent = t; acts.appendChild(li); aiLog.scrollTop = aiLog.scrollHeight; return li; },
       setError(t) { const p = document.createElement('span'); p.className = 'err'; p.textContent = t; el.appendChild(p); },
       done() { if (!hasText) body.textContent = acts.children.length ? 'できました' : ''; if (!body.textContent) body.remove(); },
     };
@@ -1527,10 +1603,51 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
   }
   function setAiBusy(b) {
     $('aiSend').hidden = b; $('aiStop').hidden = !b;
-    $('aiInput').disabled = b; $('aiFile').disabled = b; $('aiAttachSrc').disabled = b;
+    $('aiInput').disabled = b; $('aiFile').disabled = b; $('aiAttachSrc').disabled = b; $('aiDeep').disabled = b; $('aiReview').disabled = b;
     $('aiClip').classList.toggle('busy', b);
     document.querySelectorAll('#aiChips button').forEach(x => x.disabled = b);
   }
+  /**
+   * 画像の説明と、送る画像のリスト。お願いについている画像のあとに「いまの図案の画像」を足す
+   * （AI が図案の見た目を確かめられるように）。上限を超えるときは図案の画像を優先して残す。
+   */
+  async function imagesFor(userImages) {
+    if (!ai.imageLimits) return { blobs: [], note: '' };
+    const max = ai.imageLimits.maxCount;
+    const own = userImages.slice(0, Math.max(0, max - 1));
+    const lines = own.map((a, i) => `画像${i + 1}「${a.name}」`);
+    const blobs = own.map(a => a.blob);
+    const pat = await renderPatternBlob();
+    if (pat) { blobs.push(pat); lines.push(`画像${blobs.length}: いまの図案の画像`); }
+    return { blobs, note: lines.length ? `\n\nついている画像: ${lines.join('、')}` : '' };
+  }
+  const isJustOk = t => /^\s*OK[。.!！]?\s*$/i.test(t);
+
+  /** 見直し。できた図案の画像を見せて、おかしいところを道具で直してもらう。失敗しても図案はそのまま。 */
+  async function aiReview(request, userImages, modelTier, ctl, onText, bot) {
+    const li = bot.addAct('できた図案を見直しています…');
+    const pics = await imagesFor(userImages);
+    const input = [
+      { role: 'user', content: AI_RULES },
+      { role: 'user', content: `【見直し】あなたは今、次のお願いにこたえて図案を作りました。
+お願い: ${request}
+
+「いまの図案の画像」で、できあがりを確かめてください。形がくずれていないか、左右対称にしたいものが対称か、目や口などの小さな部分が見えるか、色が合っているかを見ます。${userImages.length ? 'お願いについていた画像とも見くらべてください。' : ''}
+おかしいところがあれば、道具で直してから、直したところを1文で伝えてください。直すところがなければ、道具は使わずに「OK」とだけ返事してください。
+
+いまの図案:
+${patternText()}${pics.note}` },
+    ];
+    try {
+      const { text } = await ai.sample(input, { tools: AI_TOOLS, modelTier, signal: ctl.signal, images: pics.blobs, onText: ({ text: t }) => { if (t.trim().length > 2 && !isJustOk(t)) onText(t); } });
+      li.textContent = isJustOk(text) ? '見直しました（直すところはありませんでした）' : '見直して、直しました';
+      return text;
+    } catch (e) {
+      li.textContent = e?.code === 'cancelled' ? '見直しを止めました' : '見直しはできませんでした（図案はそのまま使えます）';
+      return '';
+    }
+  }
+
   async function aiSend(text) {
     text = text.trim();
     const images = ai.pending;
@@ -1542,21 +1659,30 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
     const bot = addBot();
     ai.addAct = t => bot.addAct(t);
     const ctl = ai.ctl = new AbortController();
-    const imageNote = images.length ? `\n\nついている画像: ${images.map((a, i) => `画像${i + 1}「${a.name}」`).join('、')}` : '';
+    // じっくり考える: いちばん賢いモデル。返事は遅くなり、利用枠も多く使う
+    const modelTier = $('aiDeep').checked ? 'complex' : 'default';
+    const pics = await imagesFor(images);
     // 指示はいつも先頭に。会話は新しいほうから10ターン分だけ送る。
     // 前のお願いの画像は送り直されないので、会話の記録には「画像をつけた」とだけ残す
     const input = [
       { role: 'user', content: AI_RULES },
       ...ai.turns.slice(-10),
-      { role: 'user', content: `いまの図案:\n${patternText()}\n\nお願い: ${text}${imageNote}` },
+      { role: 'user', content: `いまの図案:\n${patternText()}\n\nお願い: ${text}${pics.note}` },
     ];
-    const opts = { tools: AI_TOOLS, signal: ctl.signal, onText: ({ text: t }) => bot.setText(t) };
-    if (images.length) opts.images = images.map(a => a.blob);
+    const opts = { tools: AI_TOOLS, modelTier, signal: ctl.signal, onText: ({ text: t }) => bot.setText(t) };
+    if (pics.blobs.length) opts.images = pics.blobs;
     try {
       const { text: answer } = await ai.sample(input, opts);
       bot.setText(answer);
+      let reply = answer;
+      // できたら見直す: 図案を変えたときだけ、できた図案を画像で見せて1回だけ直してもらう
+      if ($('aiReview').checked && ai.turnSaved && ai.imageLimits && !ctl.signal.aborted) {
+        const fix = await aiReview(text, images, modelTier, ctl, t => bot.setText(`${answer}\n\n${t}`), bot);
+        if (fix && !isJustOk(fix)) { reply = `${answer}\n\n${fix}`; bot.setText(reply); }
+        else bot.setText(answer);
+      }
       const sentNote = images.length ? `（画像を${images.length}枚つけて送った）` : '';
-      ai.turns.push({ role: 'user', content: text + sentNote }, { role: 'assistant', content: answer });
+      ai.turns.push({ role: 'user', content: text + sentNote }, { role: 'assistant', content: reply });
     } catch (e) {
       bot.setText(e?.text ?? '');
       bot.setError(aiErrorText(e?.code));
@@ -1601,7 +1727,7 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
       if (!lim?.tools) return;
       ai.sample = s; $('aiPanel').hidden = false;
       if (lim.images) {
-        ai.imageLimits = lim.images;
+        ai.imageLimits = lim.images; $('aiReviewRow').hidden = false;
         $('aiClip').hidden = false; $('aiAttach').hidden = false;
         $('aiFile').accept = lim.images.mediaTypes.join(',');
         $('aiNote').textContent = 'AIは、このページを開いている人のClaudeの利用枠を使います。はじめて使うときに確認が出ます。画像は、つけたときだけClaudeに送られます。';
