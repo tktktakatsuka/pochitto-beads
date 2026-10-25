@@ -307,6 +307,9 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 .modal-card { background: var(--card); border-radius: var(--r-lg); padding: 20px; max-width: 760px; width: 100%; max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); }
 .modal-card img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.confirm-card { max-width: 420px; }
+.confirm-card p { margin: 0; font-size: 14.5px; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--card); padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 60; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -463,6 +466,16 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
     <img id="exportImg" alt="記号つきのビーズ図案と、色ごとの必要な数">
     <button class="primary" type="button" id="downloadBtn">画像をダウンロード</button>
     <p class="hint">うまく保存できないときは、画像を長押し（パソコンは右クリック）して保存してください。</p>
+  </div>
+</div>
+<div class="modal" id="confirmModal" hidden>
+  <div class="modal-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+    <h2 class="sec-title" id="confirmTitle">手直しした図案が消えます</h2>
+    <p id="confirmText">画像から作り直すと、ペンやAIで変えたところは消えて、元にもどせません。作り直しますか？</p>
+    <div class="confirm-actions">
+      <button class="ghost" type="button" id="confirmNo">やめる</button>
+      <button class="primary" type="button" id="confirmYes">作り直す</button>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -1064,7 +1077,11 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   $('closeModal').addEventListener('click', () => { $('modal').hidden = true; });
   $('modal').addEventListener('click', e => { if (e.target.id === 'modal') $('modal').hidden = true; });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { if (!$('modal').hidden) $('modal').hidden = true; else closeEditor(); }
+    if (e.key === 'Escape') {
+      if (!$('confirmModal').hidden) closeConfirm(false);
+      else if (!$('modal').hidden) $('modal').hidden = true;
+      else closeEditor();
+    }
     if (ed.open && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   });
 
@@ -1089,11 +1106,12 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   function loadFile(f) {
     if (!f || !f.type.startsWith('image/')) { toast('画像ファイルをえらんでください'); return; }
     const url = URL.createObjectURL(f), img = new Image();
-    img.onload = () => setSource(img, f.name || '貼り付けた画像', url);
+    img.onload = () => confirmRebuild(() => setSource(img, f.name || '貼り付けた画像', url), () => {});
     img.onerror = () => toast('この画像は読み込めませんでした');
     img.src = url;
   }
-  $('file').addEventListener('change', e => loadFile(e.target.files[0]));
+  // 同じ画像をもう一度えらんでも読み込めるよう、えらんだあとは空にしておく
+  $('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
   const drop = $('drop');
   ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
@@ -1109,21 +1127,56 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
       fn(b.dataset.v);
     });
   }
-  seg('sizeSeg', v => { S.width = +v; convert(); });
-  seg('viewSeg', v => { S.view = v; S.animStart = 0; loop(); });
+  // 手直し(ペン・塗りつぶし・AI)のあとに画像から作り直すと、その手直しは消えて元にもどせない。
+  // 作り直すと「もどす」の記録も消えるので、記録があるときだけ確かめてから作り直す
+  let pendingConfirm = null;
+  function confirmRebuild(apply, revert) {
+    if (!S.history.length) { apply(); return; }
+    const opening = !pendingConfirm;
+    pendingConfirm = { apply, revert };   // スライダーを動かし続けたときは、最後の値で作り直す
+    if (opening) { $('confirmModal').hidden = false; $('confirmNo').focus(); }
+  }
+  function closeConfirm(ok) {
+    const p = pendingConfirm; pendingConfirm = null;
+    $('confirmModal').hidden = true;
+    // 「作り直す」なら、手直しの記録はここで捨てる。スライダーを動かし続けても、もう一度は聞かない
+    if (ok) { S.history = []; S.future = []; refreshButtons(); }
+    if (p) (ok ? p.apply : p.revert)();
+  }
+  $('confirmYes').addEventListener('click', () => closeConfirm(true));
+  $('confirmNo').addEventListener('click', () => closeConfirm(false));
+  $('confirmModal').addEventListener('click', e => { if (e.target.id === 'confirmModal') closeConfirm(false); });
+
   const fill = el => el.style.setProperty('--p', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+  const vividLabel = v => v < 0.9 ? 'ひかえめ' : v > 1.3 ? 'くっきり' : v > 1.1 ? 'あざやか' : 'ふつう';
+  /** 設定の見た目を S に合わせる。「やめる」を選んだときに元へ戻すのにも使う。 */
+  function syncControls() {
+    $('maxColors').value = S.maxColors; $('maxColorsVal').textContent = `${S.maxColors}色まで`; fill($('maxColors'));
+    $('vivid').value = Math.round(S.vivid * 100); $('vividVal').textContent = vividLabel(S.vivid); fill($('vivid'));
+    $('removeBg').checked = S.removeBg; $('keepOutline').checked = S.keepOutline; $('dither').checked = S.dither;
+    if (S.grid) refreshMeta();
+  }
+  seg('sizeSeg', v => confirmRebuild(() => { S.width = +v; convert(); }, syncControls));
+  seg('viewSeg', v => { S.view = v; S.animStart = 0; loop(); });
   let deb;
   const later = () => { clearTimeout(deb); deb = setTimeout(() => convert(false), 120); };
-  $('maxColors').addEventListener('input', e => { S.maxColors = +e.target.value; $('maxColorsVal').textContent = `${S.maxColors}色まで`; fill(e.target); later(); });
-  $('vivid').addEventListener('input', e => {
-    S.vivid = e.target.value / 100; fill(e.target);
-    $('vividVal').textContent = S.vivid < 0.9 ? 'ひかえめ' : S.vivid > 1.3 ? 'くっきり' : S.vivid > 1.1 ? 'あざやか' : 'ふつう';
-    later();
+  $('maxColors').addEventListener('input', e => {
+    const v = +e.target.value;
+    $('maxColorsVal').textContent = `${v}色まで`; fill(e.target);
+    confirmRebuild(() => { S.maxColors = v; syncControls(); later(); }, syncControls);
   });
-  $('removeBg').addEventListener('change', e => { S.removeBg = e.target.checked; convert(false); });
-  $('keepOutline').addEventListener('change', e => { S.keepOutline = e.target.checked; convert(false); });
-  $('dither').addEventListener('change', e => { S.dither = e.target.checked; convert(false); });
-  fill($('maxColors')); fill($('vivid'));
+  $('vivid').addEventListener('input', e => {
+    const v = e.target.value / 100;
+    $('vividVal').textContent = vividLabel(v); fill(e.target);
+    confirmRebuild(() => { S.vivid = v; syncControls(); later(); }, syncControls);
+  });
+  ['removeBg', 'keepOutline', 'dither'].forEach(key => {
+    $(key).addEventListener('change', e => {
+      const on = e.target.checked;
+      confirmRebuild(() => { S[key] = on; convert(false); }, syncControls);
+    });
+  });
+  syncControls();
 
   let rz;
   window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.grid) { layout(); S.animStart = 0; loop(); } }, 100); });
