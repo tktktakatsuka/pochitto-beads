@@ -1,0 +1,1065 @@
+<title>ぽちっとビーズ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+/* Layout: 左に設定、中央にビーズプレート（主役）、右に色リスト。スマホでは縦に積む。手直しは全画面の編集モード */
+:root {
+  --bg: #FFF3F6;
+  --bg-dot: #FBD9E3;
+  --card: #FFFFFF;
+  --card-soft: #FFF8FA;
+  --ink: #4A2B3B;
+  --ink-soft: #8A6677;
+  --accent: #EE4F86;
+  --accent-deep: #C9356A;
+  --accent-soft: #FFE0EB;
+  --mint: #7FD6BE;
+  --line: #F2D3DE;
+  --board: #F7EEF2;
+  --peg: #E6D2DB;
+  --grid: rgba(74, 43, 59, 0.12);
+  --plate: rgba(238, 79, 134, 0.55);
+  --on-accent: #FFFFFF;
+  --shadow: 0 10px 30px -12px rgba(201, 53, 106, 0.28);
+  --font-display: "Mochiy Pop One", "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  --font-body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  --r-lg: 26px;
+  --r-md: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #22171E; --bg-dot: #33232D; --card: #2E2029; --card-soft: #36262F;
+    --ink: #FBEAF1; --ink-soft: #C9A5B6; --accent: #FF79A8; --accent-deep: #FF9CBF;
+    --accent-soft: #4A2637; --mint: #6CC9B0; --line: #4A3340;
+    --board: #3A2933; --peg: #523A47; --grid: rgba(251, 234, 241, 0.12); --plate: rgba(255, 121, 168, 0.6);
+    --on-accent: #2A0F1C;
+    --shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #22171E; --bg-dot: #33232D; --card: #2E2029; --card-soft: #36262F;
+  --ink: #FBEAF1; --ink-soft: #C9A5B6; --accent: #FF79A8; --accent-deep: #FF9CBF;
+  --accent-soft: #4A2637; --mint: #6CC9B0; --line: #4A3340;
+  --board: #3A2933; --peg: #523A47; --grid: rgba(251, 234, 241, 0.12); --plate: rgba(255, 121, 168, 0.6);
+  --on-accent: #2A0F1C;
+  --shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--bg-dot) 2.5px, transparent 3px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.6;
+}
+body.locked { overflow: hidden; }
+.wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* header */
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo-beads { display: grid; grid-template-columns: repeat(3, 14px); gap: 3px; }
+.logo-beads i, .bead-sw {
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.22) 0 20%, transparent 22%), radial-gradient(circle at 32% 30%, rgba(255,255,255,.55) 0 12%, transparent 14%), var(--c);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+}
+.logo-beads i { width: 14px; height: 14px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(26px, 4vw, 34px); margin: 0; letter-spacing: .02em; color: var(--accent); line-height: 1.1; }
+.tagline { margin: 2px 0 0; color: var(--ink-soft); font-size: 14px; }
+
+/* layout */
+.app {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 270px;
+  grid-template-areas: "ctrl stage colors";
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1150px) {
+  .app { grid-template-columns: 290px minmax(0, 1fr); grid-template-areas: "ctrl stage" "ctrl colors"; }
+}
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "ctrl" "colors"; }
+}
+.panel {
+  background: var(--card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 18px;
+  min-width: 0;
+}
+.ctrl { grid-area: ctrl; }
+.stage { grid-area: stage; }
+.colors { grid-area: colors; }
+
+.sec-title {
+  font-family: var(--font-display); font-weight: 400; font-size: 15px; margin: 0;
+  display: flex; align-items: center; gap: 8px; color: var(--ink);
+}
+.sec-title::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.label { font-weight: 700; font-size: 14px; }
+.hint { color: var(--ink-soft); font-size: 12.5px; margin: 0; }
+.val { font-variant-numeric: tabular-nums; color: var(--accent-deep); font-weight: 900; }
+
+/* drop zone */
+.drop {
+  border: 2px dashed var(--line);
+  border-radius: var(--r-md);
+  background: var(--card-soft);
+  padding: 14px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.drop img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; background: var(--board); flex-shrink: 0; }
+.drop b { display: block; font-size: 14px; }
+.drop span { font-size: 12.5px; color: var(--ink-soft); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+/* segmented */
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button {
+  font: inherit; font-weight: 700; font-size: 14px;
+  border: 0; border-radius: 999px; padding: 9px 15px; min-height: 40px;
+  background: var(--accent-soft); color: var(--accent-deep);
+  cursor: pointer; transition: transform .15s, background .2s, color .2s;
+}
+.seg button:hover { transform: translateY(-1px); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); box-shadow: 0 6px 14px -6px var(--accent); }
+button:focus-visible, input:focus-visible, canvas:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* range */
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; }
+input[type="range"]::-webkit-slider-runnable-track { height: 8px; border-radius: 99px; background: linear-gradient(90deg, var(--accent) var(--p, 50%), var(--accent-soft) var(--p, 50%)); }
+input[type="range"]::-moz-range-track { height: 8px; border-radius: 99px; background: var(--accent-soft); }
+input[type="range"]::-moz-range-progress { height: 8px; border-radius: 99px; background: var(--accent); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-deep) 0 26%, #fff 28%); border: 3px solid var(--accent);
+  box-shadow: 0 3px 8px rgba(0,0,0,.2);
+}
+input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle, var(--accent-deep) 0 26%, #fff 28%); border: 3px solid var(--accent); }
+
+/* toggle */
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; min-height: 44px; }
+.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.toggle .sw { width: 46px; height: 26px; border-radius: 99px; background: var(--line); position: relative; flex-shrink: 0; transition: background .2s; }
+.toggle .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.2); transition: transform .2s; }
+.toggle input:checked + .sw { background: var(--mint); }
+.toggle input:checked + .sw::after { transform: translateX(20px); }
+.toggle input:focus-visible + .sw { outline: 3px solid var(--accent); outline-offset: 2px; }
+.toggle-text b { display: block; font-size: 14px; }
+.toggle-text span { font-size: 12.5px; color: var(--ink-soft); }
+
+/* stage */
+.stage-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat { background: var(--card-soft); border: 1px solid var(--line); border-radius: 14px; padding: 6px 12px; display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+.stat b { font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 900; }
+.board-wrap {
+  background: var(--board);
+  border-radius: 22px;
+  padding: 14px;
+  display: flex; justify-content: center; align-items: center;
+  overflow: hidden;
+  min-height: 260px;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,.05);
+  cursor: zoom-in;
+}
+#board { display: block; border-radius: 8px; max-width: 100%; }
+
+.primary {
+  font: inherit; font-weight: 900; font-size: 15px; letter-spacing: .03em;
+  border: 0; border-radius: 999px; padding: 12px 20px; min-height: 48px; cursor: pointer;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff) 0%, var(--accent) 55%, var(--accent-deep) 100%);
+  color: var(--on-accent); box-shadow: 0 8px 18px -8px var(--accent), inset 0 2px 0 rgba(255,255,255,.35);
+  transition: transform .15s;
+}
+.primary:hover { transform: translateY(-2px); }
+.ghost { font: inherit; font-weight: 700; font-size: 14px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 9px 15px; min-height: 44px; cursor: pointer; }
+.ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-deep); }
+.ghost:disabled { opacity: .4; cursor: default; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* color list */
+.color-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 560px; overflow-y: auto; }
+.color-list button {
+  width: 100%; font: inherit; border: 0; background: none; color: inherit; text-align: left;
+  display: grid; grid-template-columns: 28px 24px minmax(0,1fr) auto; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 12px; cursor: pointer; min-height: 44px;
+}
+.color-list button:hover { background: var(--card-soft); }
+.color-list .bead-sw { width: 28px; height: 28px; }
+.sym { font-family: ui-monospace, "Consolas", monospace; font-weight: 700; font-size: 12px; color: var(--ink-soft); text-align: center; border: 1px solid var(--line); border-radius: 6px; line-height: 22px; }
+.cname { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cnt { font-variant-numeric: tabular-nums; font-weight: 900; font-size: 14px; }
+.cnt small { font-weight: 500; color: var(--ink-soft); font-size: 11px; margin-left: 2px; }
+.empty-note { color: var(--ink-soft); font-size: 13px; text-align: center; padding: 20px 0; }
+.note { font-size: 12px; color: var(--ink-soft); margin: 0; }
+
+/* editor (全画面の手直し) */
+.editor {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+}
+.ed-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 10px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.ed-title { flex: 1; text-align: center; font-family: var(--font-display); color: var(--accent); font-size: 17px; }
+.ed-bar .primary { padding: 9px 18px; min-height: 44px; font-size: 14px; }
+.ed-stage { position: relative; flex: 1; min-height: 0; background: var(--board); overflow: hidden; }
+#edCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+#edCanvas.move { cursor: grab; }
+.ed-hint {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  background: color-mix(in srgb, var(--ink) 85%, transparent); color: var(--card);
+  font-weight: 700; font-size: 13px; padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+  pointer-events: none; transition: opacity .4s;
+}
+.ed-hint.gone { opacity: 0; }
+.zoom-btns { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
+.zoom-btns button {
+  font: inherit; font-weight: 900; color: var(--accent-deep); background: var(--card);
+  border: 0; border-radius: 999px; min-width: 48px; height: 48px; padding: 0 12px; font-size: 22px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.18); cursor: pointer;
+}
+.zoom-btns button.wide { font-size: 14px; }
+.ed-panel {
+  background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -8px 24px -12px rgba(0,0,0,.25);
+  padding-top: 14px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 12px;
+}
+.tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 560px; width: 100%; margin: 0 auto; }
+.tools button {
+  font: inherit; border: 0; border-radius: 16px; min-height: 60px; padding: 6px 2px;
+  background: var(--accent-soft); color: var(--accent-deep); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-weight: 700; font-size: 12px; white-space: nowrap;
+}
+.tools button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.tools svg { width: 22px; height: 22px; }
+.ed-palette { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: thin; }
+.ed-palette button { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 50%; border: 3px solid transparent; background: none; padding: 0; display: grid; place-items: center; cursor: pointer; }
+.ed-palette button[aria-pressed="true"] { border-color: var(--accent); }
+.ed-palette .bead-sw { width: 34px; height: 34px; }
+.ed-palette .sep { flex: 0 0 auto; width: 1.5px; height: 30px; align-self: center; background: var(--line); margin: 0 6px; }
+.ed-cur { font-size: 12.5px; color: var(--ink-soft); margin: 0; }
+
+/* modal */
+.modal { position: fixed; inset: 0; background: rgba(40, 15, 28, .55); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 50; }
+.modal-card { background: var(--card); border-radius: var(--r-lg); padding: 20px; max-width: 760px; width: 100%; max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); }
+.modal-card img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--card); padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 60; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo-beads" aria-hidden="true">
+        <i style="--c:#F49AC1"></i><i style="--c:#F9D923"></i><i style="--c:#9FE2C8"></i>
+        <i style="--c:#B9A6E3"></i><i style="--c:#EE4F86"></i><i style="--c:#86C9EE"></i>
+      </div>
+      <div>
+        <h1>ぽちっとビーズ</h1>
+        <p class="tagline">写真やイラストを、アイロンビーズの図案に。</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="copyBtn" type="button">必要な数をコピー</button>
+      <button class="primary" id="exportBtn" type="button">図案を画像にする</button>
+    </div>
+  </header>
+
+  <main class="app">
+    <section class="panel ctrl" aria-label="変換の設定">
+      <h2 class="sec-title">画像をえらぶ</h2>
+      <label class="drop" id="drop">
+        <img id="thumb" alt="読み込んだ画像">
+        <div>
+          <b id="srcName">見本: いちごちゃん</b>
+          <span>タップして画像をえらぶ<br>（ドラッグ・貼り付けもOK）</span>
+        </div>
+        <input type="file" id="file" accept="image/*">
+      </label>
+
+      <h2 class="sec-title">図案のサイズ</h2>
+      <div class="field">
+        <div class="seg" id="sizeSeg" role="group" aria-label="横のビーズ数">
+          <button type="button" data-v="15">15</button>
+          <button type="button" data-v="22">22</button>
+          <button type="button" data-v="29" aria-pressed="true">29</button>
+          <button type="button" data-v="43">43</button>
+          <button type="button" data-v="58">58</button>
+        </div>
+        <p class="hint">横に並ぶビーズの数。29 で正方形プレート1枚分、58 で4枚分です。</p>
+      </div>
+
+      <h2 class="sec-title">色のしあげ</h2>
+      <div class="field">
+        <div class="field-head"><label class="label" for="maxColors">使う色の数</label><span class="val" id="maxColorsVal">12色まで</span></div>
+        <input type="range" id="maxColors" min="2" max="30" value="12">
+        <p class="hint">少ないほど準備がラク。多いほど元の画像に近づきます。</p>
+      </div>
+      <div class="field">
+        <div class="field-head"><label class="label" for="vivid">あざやかさ</label><span class="val" id="vividVal">ふつう</span></div>
+        <input type="range" id="vivid" min="70" max="170" value="100" step="5">
+      </div>
+      <label class="toggle">
+        <span class="toggle-text"><b>背景をぬく</b><span>まわりの背景色を空きマスにします</span></span>
+        <input type="checkbox" id="removeBg" checked><span class="sw"></span>
+      </label>
+      <label class="toggle">
+        <span class="toggle-text"><b>輪郭線を残す</b><span>イラストの黒い線を優先して残します</span></span>
+        <input type="checkbox" id="keepOutline" checked><span class="sw"></span>
+      </label>
+      <label class="toggle">
+        <span class="toggle-text"><b>点々でなめらかに</b><span>色の境目を点で混ぜます（写真向け）</span></span>
+        <input type="checkbox" id="dither"><span class="sw"></span>
+      </label>
+    </section>
+
+    <section class="panel stage" aria-label="図案">
+      <div class="stage-bar">
+        <div class="seg" id="viewSeg" role="group" aria-label="表示">
+          <button type="button" data-v="bead" aria-pressed="true">ビーズ</button>
+          <button type="button" data-v="iron">アイロン後</button>
+          <button type="button" data-v="chart">記号つき図案</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="statSize">29×29</b>マス</div>
+          <div class="stat"><b id="statTotal">0</b>粒</div>
+          <div class="stat"><b id="statPlates">1</b>プレート</div>
+        </div>
+      </div>
+      <div class="board-wrap" id="boardWrap"><canvas id="board" role="button" tabindex="0" aria-label="ビーズ図案のプレビュー。押すと拡大して手直しできます"></canvas></div>
+      <button class="primary" type="button" id="editBtn">拡大して手直しする</button>
+      <p class="note">図案を押すと、拡大して1マスずつ手直しできます。色の見本はおおよその色で、メーカーの実際の色とは少しちがいます。</p>
+    </section>
+
+    <section class="panel colors" aria-label="使う色と数">
+      <h2 class="sec-title">使う色と数</h2>
+      <ul class="color-list" id="colorList"></ul>
+    </section>
+  </main>
+</div>
+
+<div class="editor" id="editor" hidden role="dialog" aria-modal="true" aria-label="手直し">
+  <div class="ed-bar">
+    <button class="primary" type="button" id="edDone">できた</button>
+    <span class="ed-title">手直し</span>
+    <button class="ghost" type="button" id="undoBtn" disabled>もどす</button>
+    <button class="ghost" type="button" id="redoBtn" disabled>やりなおす</button>
+  </div>
+  <div class="ed-stage" id="edStage">
+    <canvas id="edCanvas" aria-label="図案。2本指で拡大と移動、1本指で塗ります"></canvas>
+    <div class="ed-hint" id="edHint">2本指でひろげると拡大できます（パソコンはホイール）</div>
+    <div class="zoom-btns">
+      <button type="button" id="zoomIn" aria-label="拡大">＋</button>
+      <button type="button" id="zoomOut" aria-label="縮小">－</button>
+      <button type="button" id="zoomFit" class="wide" aria-label="全体を表示">全体</button>
+    </div>
+  </div>
+  <div class="ed-panel">
+    <div class="tools" id="tools" role="group" aria-label="道具">
+      <button type="button" data-v="move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 12h18M12 3v18"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>移動</button>
+      <button type="button" data-v="pen" aria-pressed="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="var(--pen-c)" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3.2" fill="rgba(0,0,0,.25)"/></svg>ペン</button>
+      <button type="button" data-v="eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="7" width="18" height="10" rx="3"/><path d="M11 7v10"/></svg>消しゴム</button>
+      <button type="button" data-v="fill"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" stroke-width="1.6"/><g fill="var(--pen-c)"><circle cx="8" cy="8" r="3.6"/><circle cx="16" cy="8" r="3.6"/><circle cx="8" cy="16" r="3.6"/><circle cx="16" cy="16" r="3.6"/></g></svg>塗りつぶし</button>
+      <button type="button" data-v="picker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M5 19L14 10"/><circle cx="17" cy="7" r="4" fill="currentColor" stroke="none"/></svg>スポイト</button>
+    </div>
+    <div class="ed-palette" id="edPalette" role="group" aria-label="色"></div>
+    <p class="ed-cur" id="edCur">いまの色: ピンク</p>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 class="sec-title" id="modalTitle">図案ができました</h2>
+      <button class="ghost" type="button" id="closeModal">とじる</button>
+    </div>
+    <img id="exportImg" alt="記号つきのビーズ図案と、色ごとの必要な数">
+    <button class="primary" type="button" id="downloadBtn">画像をダウンロード</button>
+    <p class="hint">うまく保存できないときは、画像を長押し（パソコンは右クリック）して保存してください。</p>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  // ---- ビーズの色（おおよその値） ----
+  const RAW = [
+    ['しろ','#F7F7F2'],['クリーム','#F6E7A8'],['レモン','#FFF07A'],['きいろ','#F9D923'],['ゴールド','#C9A227'],
+    ['うすオレンジ','#F8B878'],['オレンジ','#F28C28'],['ピーチ','#FFC5A8'],['サーモン','#F6A38E'],['コーラル','#FF7F6E'],
+    ['あか','#D7263D'],['ワイン','#8E1F3B'],['ローズ','#E84A73'],['ピンク','#F49AC1'],['うすピンク','#F9C9D9'],
+    ['ラベンダー','#B9A6E3'],['パステルむらさき','#DCCDF2'],['むらさき','#7E4FB0'],['ぶどう','#4E2A7A'],
+    ['パステルあお','#BFD9F5'],['みずいろ','#86C9EE'],['そらいろ','#4FA3E0'],['あお','#2457B5'],['こん','#1D2D63'],
+    ['ミント','#9FE2C8'],['エメラルド','#1BA59A'],['パステルみどり','#C8EBB0'],['きみどり','#A6D63A'],['みどり','#2FA84F'],['ふかみどり','#1F6E43'],
+    ['はだいろ','#F3D0B5'],['ベージュ','#E3C29B'],['ちゃいろ','#8A5A3B'],['こげちゃ','#5A3825'],
+    ['うすはいいろ','#C9C7CB'],['はいいろ','#8E8C90'],['くろ','#1E1B1E']
+  ];
+  const SYMS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+  const hexToRgb = h => [1,3,5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  function rgbToLab(r, g, b) {
+    const R = lin(r), G = lin(g), B = lin(b);
+    let x = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047;
+    let y = (R * 0.2126 + G * 0.7152 + B * 0.0722);
+    let z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
+    const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    x = f(x); y = f(y); z = f(z);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  }
+  const dE = (a, b) => (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2;
+  const PAL = RAW.map(([n, h], i) => { const rgb = hexToRgb(h); return { n, h, rgb, lab: rgbToLab(...rgb), sym: SYMS[i] }; });
+  function nearest(lab, set) {
+    let best = set[0], bd = Infinity;
+    for (const i of set) { const d = dE(lab, PAL[i].lab); if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+  function shade(rgb, k) {
+    return `rgb(${rgb.map(c => Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k)).join(',')})`;
+  }
+  const lum = rgb => (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]);
+
+  // ---- 変換のきまり（Android 版と同じ値） ----
+  const BG_THRESHOLD = 14;          // 背景とみなす色の差(ΔE)
+  const DOMINANT_MIN_SHARE = 0.25;  // 代表色のグループがこれより少なければ平均の色
+  const OUTLINE_LUMA = 70;          // 輪郭線とみなす暗さ
+  const OUTLINE_MIN_SHARE = 0.15;   // マスの中で輪郭線が占める割合の下限
+  const DIFFERENT_COLOR = 40;       // これ以上の色の差は「別の色」
+  const DIFFERENT_COLOR_WEIGHT = 8; // 別の色になってしまうずれの重さ
+  const MAX_SOURCE_SIDE = 1024;
+
+  // ---- 状態 ----
+  const S = {
+    src: null, srcData: null, width: 29, maxColors: 12, vivid: 1, removeBg: true, keepOutline: true, dither: false,
+    cols: 0, rows: 0, grid: null, view: 'bead', tool: 'pen', color: PAL.findIndex(p => p.n === 'ピンク'),
+    history: [], future: [], animStart: 0, cell: 10
+  };
+  const $ = id => document.getElementById(id);
+  const board = $('board'), ctx = board.getContext('2d');
+
+  // ---- 見本画像（いちごちゃん） ----
+  function sampleImage() {
+    const c = document.createElement('canvas'); c.width = c.height = 300;
+    const g = c.getContext('2d');
+    g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, 300, 300);
+    g.fillStyle = '#E8344E';
+    g.beginPath(); g.moveTo(150, 272);
+    g.bezierCurveTo(55, 225, 35, 120, 88, 92);
+    g.bezierCurveTo(118, 78, 182, 78, 212, 92);
+    g.bezierCurveTo(265, 120, 245, 225, 150, 272); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.6)';
+    g.beginPath(); g.ellipse(100, 135, 13, 26, -0.45, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#FFE27A';
+    [[180,120],[205,150],[120,215],[150,240],[185,210],[95,175],[215,185]].forEach(([x, y]) => { g.beginPath(); g.ellipse(x, y, 5, 7, 0, 0, Math.PI * 2); g.fill(); });
+    g.fillStyle = '#3DAA4F';
+    g.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 22 : 52;
+      g.lineTo(150 + Math.cos(a) * r * 1.15, 92 + Math.sin(a) * r * 0.55);
+    }
+    g.closePath(); g.fill();
+    g.fillRect(143, 40, 14, 40);
+    g.fillStyle = '#2A1A1F';
+    g.beginPath(); g.arc(122, 168, 9, 0, Math.PI * 2); g.arc(178, 168, 9, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#FFB3C7';
+    g.beginPath(); g.ellipse(102, 192, 13, 8, 0, 0, Math.PI * 2); g.ellipse(198, 192, 13, 8, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#2A1A1F'; g.lineWidth = 7; g.lineCap = 'round';
+    g.beginPath(); g.arc(150, 186, 14, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
+    return c;
+  }
+
+  /** 画像を、長い辺が MAX_SOURCE_SIDE 以下の大きさでピクセルにする。 */
+  function readPixels(src) {
+    const sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
+    const k = Math.min(1, MAX_SOURCE_SIDE / Math.max(sw, sh));
+    const w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(src, 0, 0, w, h);
+    return { w, h, d: g.getImageData(0, 0, w, h).data };
+  }
+
+  // ---- 1マスの色を決める（代表色・輪郭線） ----
+  // 色を平均すると、赤と白の境目がピンクに濁る。似た色をグループにして数え、一番大きいグループの色を使う
+  const BIN = { cnt: new Int32Array(4096), r: new Int32Array(4096), g: new Int32Array(4096), b: new Int32Array(4096), touched: new Int32Array(4096) };
+  function neighborhood(bin, sums) {
+    const r = bin >> 8, g = (bin >> 4) & 15, b = bin & 15;
+    let total = 0;
+    for (let dr = -1; dr <= 1; dr++) for (let dg = -1; dg <= 1; dg++) for (let db = -1; db <= 1; db++) {
+      const rr = r + dr, gg = g + dg, bb = b + db;
+      if (rr < 0 || rr > 15 || gg < 0 || gg > 15 || bb < 0 || bb > 15) continue;
+      const k = (rr << 8) | (gg << 4) | bb;
+      total += BIN.cnt[k];
+      if (sums) { sums[0] += BIN.r[k]; sums[1] += BIN.g[k]; sums[2] += BIN.b[k]; }
+    }
+    return total;
+  }
+  function sampleCell(d, W, x0, y0, x1, y1) {
+    let tn = 0, opaque = 0, transparent = 0, aR = 0, aG = 0, aB = 0, dark = 0, dR = 0, dG = 0, dB = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const o = (y * W + x) * 4;
+      if (d[o + 3] < 128) { transparent++; continue; }
+      const r = d[o], g = d[o + 1], b = d[o + 2];
+      opaque++; aR += r; aG += g; aB += b;
+      if (S.keepOutline && 0.299 * r + 0.587 * g + 0.114 * b < OUTLINE_LUMA) { dark++; dR += r; dG += g; dB += b; }
+      const bin = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+      if (BIN.cnt[bin] === 0) BIN.touched[tn++] = bin;
+      BIN.cnt[bin]++; BIN.r[bin] += r; BIN.g[bin] += g; BIN.b[bin] += b;
+    }
+    let result = null;
+    if (opaque > transparent) {
+      let best = -1, bestCount = 0;
+      for (let t = 0; t < tn; t++) { const c = neighborhood(BIN.touched[t]); if (c > bestCount) { bestCount = c; best = BIN.touched[t]; } }
+      if (bestCount < opaque * DOMINANT_MIN_SHARE) result = [aR / opaque, aG / opaque, aB / opaque];
+      else { const s = [0, 0, 0], c = neighborhood(best, s); result = [s[0] / c, s[1] / c, s[2] / c]; }
+      // 輪郭線: 暗い線がある程度あれば、その線の色を優先する
+      if (S.keepOutline && dark >= opaque * OUTLINE_MIN_SHARE && lum(result) >= OUTLINE_LUMA) result = [dR / dark, dG / dark, dB / dark];
+    }
+    for (let t = 0; t < tn; t++) { const k = BIN.touched[t]; BIN.cnt[k] = 0; BIN.r[k] = 0; BIN.g[k] = 0; BIN.b[k] = 0; }
+    return result;
+  }
+
+  /** 使う色を選ぶ。足すと全体の色のずれが一番減る色から順に。目の黒のように少なくても目立つ色が残る。 */
+  function chooseColors(labs, maxColors) {
+    const n = labs.length; if (!n) return [];
+    const lim = DIFFERENT_COLOR * DIFFERENT_COLOR;
+    const dist = PAL.map(p => { const a = new Float32Array(n); for (let i = 0; i < n; i++) { const d = dE(labs[i], p.lab); a[i] = d > lim ? d * DIFFERENT_COLOR_WEIGHT : d; } return a; });
+    const best = new Float32Array(n).fill(1e6), chosen = [];
+    for (let k = 0; k < Math.min(maxColors, PAL.length); k++) {
+      let pick = -1, pickGain = 0;
+      for (let c = 0; c < PAL.length; c++) {
+        if (chosen.includes(c)) continue;
+        let gain = 0; const d = dist[c];
+        for (let i = 0; i < n; i++) if (d[i] < best[i]) gain += best[i] - d[i];
+        if (gain > pickGain) { pickGain = gain; pick = c; }
+      }
+      if (pick < 0) break;
+      chosen.push(pick);
+      const d = dist[pick];
+      for (let i = 0; i < n; i++) if (d[i] < best[i]) best[i] = d[i];
+    }
+    return chosen;
+  }
+
+  // ---- 変換 ----
+  function convert(animate = true) {
+    const sd = S.srcData; if (!sd) return;
+    const cols = S.width, rows = Math.max(1, Math.min(cols * 2, Math.round(cols * sd.h / sd.w)));
+    const n = cols * rows;
+    const rgb = new Float32Array(n * 3), ok = new Uint8Array(n), labs = new Array(n);
+    for (let cy = 0; cy < rows; cy++) {
+      const y0 = Math.floor(cy * sd.h / rows), y1 = Math.max(y0 + 1, Math.floor((cy + 1) * sd.h / rows));
+      for (let cx = 0; cx < cols; cx++) {
+        const x0 = Math.floor(cx * sd.w / cols), x1 = Math.max(x0 + 1, Math.floor((cx + 1) * sd.w / cols));
+        const c = sampleCell(sd.d, sd.w, x0, y0, x1, y1); if (!c) continue;
+        const i = cy * cols + cx, L = lum(c);
+        for (let k = 0; k < 3; k++) rgb[i * 3 + k] = Math.max(0, Math.min(255, L + (c[k] - L) * S.vivid));
+        ok[i] = 1; labs[i] = rgbToLab(rgb[i*3], rgb[i*3+1], rgb[i*3+2]);
+      }
+    }
+    // 背景ぬき: 四隅の色に近いマスを、外側からつながっている分だけ空きにする
+    if (S.removeBg) {
+      const corners = [0, cols - 1, (rows - 1) * cols, n - 1].filter(i => ok[i]);
+      if (corners.length) {
+        const ref = [0, 0, 0];
+        corners.forEach(i => { for (let k = 0; k < 3; k++) ref[k] += labs[i][k] / corners.length; });
+        const seen = new Uint8Array(n), stack = [];
+        for (let x = 0; x < cols; x++) stack.push(x, (rows - 1) * cols + x);
+        for (let y = 0; y < rows; y++) stack.push(y * cols, y * cols + cols - 1);
+        while (stack.length) {
+          const i = stack.pop();
+          if (seen[i]) continue; seen[i] = 1;
+          if (!ok[i] || dE(labs[i], ref) >= BG_THRESHOLD * BG_THRESHOLD) continue;
+          ok[i] = 0;
+          const x = i % cols, y = (i - x) / cols;
+          if (x > 0) stack.push(i - 1); if (x < cols - 1) stack.push(i + 1);
+          if (y > 0) stack.push(i - cols); if (y < rows - 1) stack.push(i + cols);
+        }
+      }
+    }
+    const keep = chooseColors(labs.filter((_, i) => ok[i]), S.maxColors);
+    const grid = new Int16Array(n).fill(-1);
+    if (keep.length) {
+      if (S.dither) {
+        const buf = Float32Array.from(rgb);
+        for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+          const i = y * cols + x; if (!ok[i]) continue;
+          const c = [buf[i*3], buf[i*3+1], buf[i*3+2]].map(v => Math.max(0, Math.min(255, v)));
+          const p = nearest(rgbToLab(...c), keep); grid[i] = p;
+          const e = [c[0] - PAL[p].rgb[0], c[1] - PAL[p].rgb[1], c[2] - PAL[p].rgb[2]];
+          const push = (dx, dy, w) => {
+            const xx = x + dx, yy = y + dy; if (xx < 0 || xx >= cols || yy >= rows) return;
+            const j = yy * cols + xx; if (!ok[j]) return;
+            buf[j*3] += e[0] * w; buf[j*3+1] += e[1] * w; buf[j*3+2] += e[2] * w;
+          };
+          push(1, 0, 7/16); push(-1, 1, 3/16); push(0, 1, 5/16); push(1, 1, 1/16);
+        }
+      } else {
+        for (let i = 0; i < n; i++) if (ok[i]) grid[i] = nearest(labs[i], keep);
+      }
+    }
+    S.cols = cols; S.rows = rows; S.grid = grid; S.history = []; S.future = [];
+    S.animStart = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? performance.now() : 0;
+    layout(); refreshMeta(); loop();
+  }
+
+  // ---- 描画 ----
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const themeColors = () => ({ board: css('--board'), peg: css('--peg'), grid: css('--grid'), plate: css('--plate') });
+  function layout() {
+    const wrap = $('boardWrap');
+    const availW = wrap.clientWidth - 28;
+    const availH = Math.min(window.innerHeight * 0.68, 760);
+    S.cell = Math.max(5, Math.floor(Math.min(availW / S.cols, availH / S.rows)));
+    const dpr = window.devicePixelRatio || 1;
+    board.style.width = S.cols * S.cell + 'px'; board.style.height = S.rows * S.cell + 'px';
+    board.width = Math.round(S.cols * S.cell * dpr); board.height = Math.round(S.rows * S.cell * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  /**
+   * 図案を描く。(ox, oy) はプレート左上の位置、c は1マスの大きさ。W×H の外にはみ出すマスは描かない。
+   */
+  function drawPattern(g, c, ox, oy, W, H, view, colors, progress, showGrid) {
+    const cols = S.cols, rows = S.rows;
+    const x0 = Math.max(0, Math.floor(-ox / c)), y0 = Math.max(0, Math.floor(-oy / c));
+    const x1 = Math.min(cols, Math.ceil((W - ox) / c)), y1 = Math.min(rows, Math.ceil((H - oy) / c));
+    if (x0 >= x1 || y0 >= y1) return;
+    g.fillStyle = colors.board; g.fillRect(ox + x0 * c, oy + y0 * c, (x1 - x0) * c, (y1 - y0) * c);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const p = S.grid[y * cols + x];
+      const left = ox + x * c, top = oy + y * c, cx = left + c / 2, cy = top + c / 2;
+      const t = progress ? Math.max(0, Math.min(1, progress(x, y))) : 1;
+      if (p < 0 || t <= 0) {
+        if (view !== 'chart') { g.fillStyle = colors.peg; g.beginPath(); g.arc(cx, cy, c * 0.12, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
+      const col = PAL[p];
+      const s = t < 1 ? 1 + Math.sin(t * Math.PI) * 0.25 - (1 - t) * 0.6 : 1;
+      if (view === 'bead') {
+        const r = c * 0.46 * s;
+        g.fillStyle = col.h; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(0,0,0,.10)'; g.lineWidth = Math.max(0.5, c * 0.04); g.stroke();
+        g.fillStyle = shade(col.rgb, -0.32); g.beginPath(); g.arc(cx, cy, r * 0.36, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(cx - r * 0.42, cy - r * 0.42, r * 0.17, 0, Math.PI * 2); g.fill();
+      } else if (view === 'iron') {
+        const pad = c * 0.02;
+        g.fillStyle = col.h;
+        g.beginPath(); g.roundRect(left - pad, top - pad, c + pad * 2, c + pad * 2, c * 0.32); g.fill();
+        g.fillStyle = shade(col.rgb, -0.18); g.beginPath(); g.arc(cx, cy, c * 0.09 * s, 0, Math.PI * 2); g.fill();
+      } else {
+        g.fillStyle = col.h; g.fillRect(left, top, c, c);
+        if (c >= 11) {
+          g.fillStyle = lum(col.rgb) > 150 ? 'rgba(40,20,30,.75)' : 'rgba(255,255,255,.9)';
+          g.font = `700 ${Math.round(c * 0.58)}px ui-monospace, Consolas, monospace`;
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(col.sym, cx, cy + c * 0.04);
+        }
+      }
+    }
+    if (showGrid) {
+      // 5マスごとに少し太く、29マス(プレート1枚)ごとに色つきの線
+      for (let x = x0; x <= x1; x++) {
+        g.fillStyle = x % 29 === 0 ? colors.plate : colors.grid;
+        const w = x % 29 === 0 ? 2 : (x % 5 === 0 ? 1.4 : 0.7);
+        g.fillRect(ox + x * c - w / 2, oy + y0 * c, w, (y1 - y0) * c);
+      }
+      for (let y = y0; y <= y1; y++) {
+        g.fillStyle = y % 29 === 0 ? colors.plate : colors.grid;
+        const w = y % 29 === 0 ? 2 : (y % 5 === 0 ? 1.4 : 0.7);
+        g.fillRect(ox + x0 * c, oy + y * c - w / 2, (x1 - x0) * c, w);
+      }
+    }
+  }
+  let raf = 0;
+  function loop() {
+    cancelAnimationFrame(raf);
+    const colors = themeColors();
+    const D = 650, span = S.cols + S.rows, W = S.cols * S.cell, H = S.rows * S.cell;
+    const frame = now => {
+      const el = S.animStart ? now - S.animStart : Infinity;
+      const prog = el < D + 260 ? (x, y) => (el - (x + y) / span * D) / 260 : null;
+      ctx.clearRect(0, 0, W, H);
+      drawPattern(ctx, S.cell, 0, 0, W, H, S.view, colors, prog, S.view === 'chart');
+      if (prog) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  }
+
+  // ---- 色リスト・数字 ----
+  function usage() {
+    const m = new Map();
+    for (const p of S.grid) if (p >= 0) m.set(p, (m.get(p) || 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }
+  function refreshMeta() {
+    const u = usage(), total = u.reduce((s, [, c]) => s + c, 0);
+    $('statSize').textContent = `${S.cols}×${S.rows}`;
+    $('statTotal').textContent = total.toLocaleString();
+    $('statPlates').textContent = Math.ceil(S.cols / 29) * Math.ceil(S.rows / 29);
+    const list = $('colorList'); list.innerHTML = '';
+    if (!u.length) { list.innerHTML = '<li class="empty-note">ビーズがありません。<br>「背景をぬく」をオフにしてみてください。</li>'; }
+    u.forEach(([p, c]) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<button type="button" title="この色で手直しする"><span class="bead-sw" style="--c:${PAL[p].h}"></span><span class="sym">${PAL[p].sym}</span><span class="cname">${PAL[p].n}</span><span class="cnt">${c}<small>粒</small></span></button>`;
+      li.firstChild.addEventListener('click', () => { setColor(p); openEditor(); });
+      list.appendChild(li);
+    });
+    $('undoBtn').disabled = !S.history.length;
+    $('redoBtn').disabled = !S.future.length;
+  }
+  function setColor(p) {
+    S.color = p;
+    document.documentElement.style.setProperty('--pen-c', PAL[p].h);
+    $('edCur').textContent = `いまの色: ${PAL[p].n}`;
+    document.querySelectorAll('#edPalette button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.p === p));
+    if (S.tool !== 'pen' && S.tool !== 'fill') setTool('pen');
+  }
+  function setTool(t) {
+    S.tool = t;
+    document.querySelectorAll('#tools button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === t));
+    $('edCanvas').classList.toggle('move', t === 'move');
+  }
+
+  // ---- 手直し（全画面） ----
+  const ed = { open: false, zoom: 1, ox: 0, oy: 0, fit: 1, maxZoom: 8, W: 0, H: 0 };
+  const edCanvas = $('edCanvas'), edCtx = edCanvas.getContext('2d');
+  const edCell = () => ed.fit * ed.zoom;
+  function edResize() {
+    const r = $('edStage').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const fresh = ed.W === 0;
+    ed.W = r.width; ed.H = r.height;
+    edCanvas.width = Math.round(r.width * dpr); edCanvas.height = Math.round(r.height * dpr);
+    edCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ed.fit = Math.min(ed.W / S.cols, ed.H / S.rows) * 0.94;
+    ed.maxZoom = Math.max(2, 72 / ed.fit);
+    if (fresh) edShowAll(); else edClamp(ed.ox, ed.oy);
+  }
+  function edShowAll() { ed.zoom = 1; edClamp((ed.W - S.cols * edCell()) / 2, (ed.H - S.rows * edCell()) / 2); }
+  /** 図案が画面の外へ行ききってしまわないようにする。画面より小さいときは真ん中に置く。 */
+  function edClamp(ox, oy) {
+    const w = S.cols * edCell(), h = S.rows * edCell(), m = 0.35;
+    ed.ox = w <= ed.W ? (ed.W - w) / 2 : Math.min(ed.W * m, Math.max(ed.W * (1 - m) - w, ox));
+    ed.oy = h <= ed.H ? (ed.H - h) / 2 : Math.min(ed.H * m, Math.max(ed.H * (1 - m) - h, oy));
+    edDraw();
+  }
+  /** (fx, fy) を中心に拡大する。指の間の点が動かないようにする。 */
+  function edZoomBy(f, fx, fy) {
+    const nz = Math.max(1, Math.min(ed.maxZoom, ed.zoom * f)), k = nz / ed.zoom;
+    ed.zoom = nz;
+    edClamp(fx - (fx - ed.ox) * k, fy - (fy - ed.oy) * k);
+  }
+  let edRaf = 0;
+  function edDraw() {
+    if (!ed.open || edRaf) return;
+    edRaf = requestAnimationFrame(() => {
+      edRaf = 0;
+      const c = edCell();
+      edCtx.clearRect(0, 0, ed.W, ed.H);
+      drawPattern(edCtx, c, ed.ox, ed.oy, ed.W, ed.H, S.view, themeColors(), null, S.view === 'chart' || c >= 14);
+    });
+  }
+  function buildPalette() {
+    // 図案で使っている色を先に。塗るたびに並びが変わって列がずれないよう、開いたときに決める
+    const used = usage().map(([p]) => p);
+    const order = [...used, ...PAL.map((_, i) => i).filter(i => !used.includes(i))];
+    const box = $('edPalette'); box.innerHTML = '';
+    order.forEach((i, k) => {
+      if (k === used.length && used.length) { const s = document.createElement('span'); s.className = 'sep'; box.appendChild(s); }
+      const b = document.createElement('button');
+      b.type = 'button'; b.dataset.p = i; b.title = PAL[i].n; b.setAttribute('aria-label', PAL[i].n);
+      b.setAttribute('aria-pressed', i === S.color);
+      b.innerHTML = `<span class="bead-sw" style="--c:${PAL[i].h}"></span>`;
+      b.addEventListener('click', () => setColor(i));
+      box.appendChild(b);
+    });
+  }
+  let pushedState = false;
+  function openEditor() {
+    if (!S.grid || ed.open) return;
+    ed.open = true; ed.W = 0;
+    $('editor').hidden = false; document.body.classList.add('locked');
+    buildPalette(); setColor(S.color);
+    $('edHint').classList.remove('gone');
+    clearTimeout(openEditor.t); openEditor.t = setTimeout(() => $('edHint').classList.add('gone'), 4000);
+    edResize();
+    // スマホの「戻る」で、ページから出ずに手直しを閉じられるようにする
+    try { history.pushState({ editor: 1 }, ''); pushedState = true; } catch { pushedState = false; }
+    $('edDone').focus();
+  }
+  function closeEditor(fromPop = false) {
+    if (!ed.open) return;
+    ed.open = false;
+    $('editor').hidden = true; document.body.classList.remove('locked');
+    S.animStart = 0; loop(); refreshMeta();
+    if (pushedState && !fromPop) { pushedState = false; try { history.back(); } catch {} }
+    pushedState = false;
+    $('editBtn').focus();
+  }
+  window.addEventListener('popstate', () => { if (ed.open) closeEditor(true); });
+  new ResizeObserver(() => { if (ed.open) edResize(); }).observe($('edStage'));
+
+  // 塗る
+  let strokeSaved = false, strokeDone = false;
+  function beginStroke() { strokeSaved = false; strokeDone = false; }
+  function record() {
+    S.history.push(S.grid.slice()); if (S.history.length > 60) S.history.shift();
+    S.future = []; refreshButtons();
+  }
+  function refreshButtons() { $('undoBtn').disabled = !S.history.length; $('redoBtn').disabled = !S.future.length; }
+  function floodFill(i, v) {
+    const target = S.grid[i]; if (target === v) return false;
+    const stack = [i];
+    while (stack.length) {
+      const j = stack.pop(); if (S.grid[j] !== target) continue;
+      S.grid[j] = v;
+      const x = j % S.cols, y = (j - x) / S.cols;
+      if (x > 0) stack.push(j - 1); if (x < S.cols - 1) stack.push(j + 1);
+      if (y > 0) stack.push(j - S.cols); if (y < S.rows - 1) stack.push(j + S.cols);
+    }
+    return true;
+  }
+  function paintAt(px, py) {
+    const c = edCell(), x = Math.floor((px - ed.ox) / c), y = Math.floor((py - ed.oy) / c);
+    if (x < 0 || y < 0 || x >= S.cols || y >= S.rows || strokeDone) return;
+    const i = y * S.cols + x;
+    if (S.tool === 'picker') { if (S.grid[i] >= 0) { setColor(S.grid[i]); strokeDone = true; } return; }
+    if (S.tool === 'fill') {
+      strokeDone = true;
+      const before = S.grid.slice();
+      if (floodFill(i, S.color)) { S.history.push(before); S.future = []; refreshButtons(); edDraw(); }
+      return;
+    }
+    const v = S.tool === 'pen' ? S.color : -1;
+    if (S.grid[i] === v) return;
+    if (!strokeSaved) { record(); strokeSaved = true; }
+    S.grid[i] = v; edDraw();
+  }
+  function undo() { if (!S.history.length) return; S.future.push(S.grid); S.grid = S.history.pop(); refreshButtons(); edDraw(); }
+  function redo() { if (!S.future.length) return; S.history.push(S.grid); S.grid = S.future.pop(); refreshButtons(); edDraw(); }
+
+  // 指の操作: 2本指 = 拡大・移動 / 1本指 = 塗る（「移動」のときは動かす）
+  // ピンチしようとして先に触れた1本目の指で塗ってしまわないよう、少し動くか離すまで塗らない
+  const pts = new Map();
+  let gesture = null;
+  const pos = e => { const r = edCanvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  function pinchInfo() {
+    const [a, b] = [...pts.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+  }
+  edCanvas.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { edCanvas.setPointerCapture(e.pointerId); } catch {}
+    pts.set(e.pointerId, pos(e));
+    if (pts.size === 1) {
+      gesture = { start: pos(e), moved: 0, painting: false, multi: false, last: pos(e) };
+    } else if (gesture) {
+      gesture.multi = true; gesture.pinch = pinchInfo();
+      $('edHint').classList.add('gone');
+    }
+  });
+  edCanvas.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !gesture) return;
+    const p = pos(e); pts.set(e.pointerId, p);
+    if (gesture.multi) {
+      if (pts.size < 2) return;
+      const now = pinchInfo(), prev = gesture.pinch;
+      edZoomBy(now.d / prev.d, now.cx, now.cy);
+      edClamp(ed.ox + now.cx - prev.cx, ed.oy + now.cy - prev.cy);
+      gesture.pinch = now;
+      return;
+    }
+    const prev = gesture.last, dx = p.x - prev.x, dy = p.y - prev.y; gesture.last = p;
+    if (S.tool === 'move') { edClamp(ed.ox + dx, ed.oy + dy); return; }
+    gesture.moved += Math.hypot(dx, dy);
+    if (!gesture.painting && gesture.moved > 8) { gesture.painting = true; beginStroke(); paintLine(gesture.start, prev); }
+    if (gesture.painting) paintLine(prev, p);
+  });
+  /** a から b までの直線上のマスをすべて塗る。速くなぞっても、とびとびにならないようにする。 */
+  function paintLine(a, b) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (edCell() / 3)));
+    for (let k = 1; k <= steps; k++) paintAt(a.x + (b.x - a.x) * k / steps, a.y + (b.y - a.y) * k / steps);
+    if (steps === 1) paintAt(a.x, a.y);
+  }
+  const endPointer = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (gesture && gesture.multi && pts.size === 2) gesture.pinch = pinchInfo();
+    if (pts.size > 0 || !gesture) return;
+    // 動かさずに離した = タップ
+    if (e.type === 'pointerup' && !gesture.multi && !gesture.painting && S.tool !== 'move') { beginStroke(); paintAt(gesture.start.x, gesture.start.y); }
+    gesture = null;
+  };
+  edCanvas.addEventListener('pointerup', endPointer);
+  edCanvas.addEventListener('pointercancel', endPointer);
+  edCanvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    $('edHint').classList.add('gone');
+    const p = pos(e);
+    edZoomBy(Math.exp(-e.deltaY * 0.0015), p.x, p.y);
+  }, { passive: false });
+
+  $('zoomIn').addEventListener('click', () => edZoomBy(1.6, ed.W / 2, ed.H / 2));
+  $('zoomOut').addEventListener('click', () => edZoomBy(1 / 1.6, ed.W / 2, ed.H / 2));
+  $('zoomFit').addEventListener('click', edShowAll);
+  $('tools').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTool(b.dataset.v); });
+  $('undoBtn').addEventListener('click', undo);
+  $('redoBtn').addEventListener('click', redo);
+  $('edDone').addEventListener('click', () => closeEditor());
+  board.addEventListener('click', openEditor);
+  board.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(); } });
+  $('editBtn').addEventListener('click', openEditor);
+
+  // ---- 書き出し ----
+  let exportURL = '';
+  function exportImage() {
+    const c = Math.max(14, Math.min(22, Math.floor(1100 / S.cols)));
+    const u = usage(), W = Math.max(S.cols * c + 40, 520), legendCols = Math.max(1, Math.floor((W - 40) / 170));
+    const legendH = Math.ceil(u.length / legendCols) * 34 + 70;
+    const H = S.rows * c + 40 + 56 + legendH;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#C9356A'; g.font = '700 22px "Zen Maru Gothic", sans-serif'; g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+    g.fillText('ぽちっとビーズ 図案', 20, 36);
+    g.fillStyle = '#8A6677'; g.font = '500 14px "Zen Maru Gothic", sans-serif';
+    const total = u.reduce((s, [, n]) => s + n, 0);
+    g.fillText(`${S.cols}×${S.rows}マス ・ ${total}粒 ・ ${u.length}色`, 20, 58);
+    const left = (W - S.cols * c) / 2;
+    drawPattern(g, c, left, 76, W, H, 'chart', { board: '#FFFFFF', peg: '#EEE', grid: 'rgba(74,43,59,.18)', plate: 'rgba(238,79,134,.8)' }, null, true);
+    let y0 = 76 + S.rows * c + 30;
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#4A2B3B'; g.font = '700 16px "Zen Maru Gothic", sans-serif'; g.textAlign = 'left'; g.fillText('使う色と数', 20, y0); y0 += 16;
+    u.forEach(([p, n], k) => {
+      const col = k % legendCols, row = Math.floor(k / legendCols);
+      const x = 20 + col * 170, y = y0 + row * 34;
+      g.fillStyle = PAL[p].h; g.fillRect(x, y, 24, 24); g.strokeStyle = 'rgba(0,0,0,.15)'; g.strokeRect(x + .5, y + .5, 23, 23);
+      g.fillStyle = lum(PAL[p].rgb) > 150 ? '#3A1F2C' : '#FFFFFF'; g.font = '700 14px Consolas, monospace'; g.textAlign = 'center';
+      g.fillText(PAL[p].sym, x + 12, y + 17);
+      g.textAlign = 'left'; g.fillStyle = '#4A2B3B'; g.font = '500 13px "Zen Maru Gothic", sans-serif';
+      g.fillText(`${PAL[p].n}  ${n}粒`, x + 32, y + 17);
+    });
+    exportURL = cv.toDataURL('image/png');
+    $('exportImg').src = exportURL;
+    $('modal').hidden = false; $('closeModal').focus();
+  }
+  $('exportBtn').addEventListener('click', exportImage);
+  $('downloadBtn').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = exportURL; a.download = `beads_${S.cols}x${S.rows}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('closeModal').addEventListener('click', () => { $('modal').hidden = true; });
+  $('modal').addEventListener('click', e => { if (e.target.id === 'modal') $('modal').hidden = true; });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { if (!$('modal').hidden) $('modal').hidden = true; else closeEditor(); }
+    if (ed.open && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  });
+
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 1800); }
+  $('copyBtn').addEventListener('click', () => {
+    const u = usage();
+    const text = `ビーズ図案 ${S.cols}×${S.rows}マス（合計${u.reduce((s, [, n]) => s + n, 0)}粒）\n` + u.map(([p, n]) => `${PAL[p].sym} ${PAL[p].n}: ${n}粒`).join('\n');
+    const fallback = () => {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); toast('コピーしました'); } catch { toast('コピーできませんでした'); }
+      ta.remove();
+    };
+    try { navigator.clipboard.writeText(text).then(() => toast('コピーしました'), fallback); } catch { fallback(); }
+  });
+
+  // ---- 画像の読み込み ----
+  function setSource(src, name, thumbUrl) {
+    S.src = src; S.srcData = readPixels(src);
+    $('thumb').src = thumbUrl; $('srcName').textContent = name;
+    convert();
+  }
+  function loadFile(f) {
+    if (!f || !f.type.startsWith('image/')) { toast('画像ファイルをえらんでください'); return; }
+    const url = URL.createObjectURL(f), img = new Image();
+    img.onload = () => setSource(img, f.name || '貼り付けた画像', url);
+    img.onerror = () => toast('この画像は読み込めませんでした');
+    img.src = url;
+  }
+  $('file').addEventListener('change', e => loadFile(e.target.files[0]));
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+  document.addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+
+  // ---- 設定 ----
+  function seg(id, fn) {
+    const el = $(id);
+    el.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      fn(b.dataset.v);
+    });
+  }
+  seg('sizeSeg', v => { S.width = +v; convert(); });
+  seg('viewSeg', v => { S.view = v; S.animStart = 0; loop(); });
+  const fill = el => el.style.setProperty('--p', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+  let deb;
+  const later = () => { clearTimeout(deb); deb = setTimeout(() => convert(false), 120); };
+  $('maxColors').addEventListener('input', e => { S.maxColors = +e.target.value; $('maxColorsVal').textContent = `${S.maxColors}色まで`; fill(e.target); later(); });
+  $('vivid').addEventListener('input', e => {
+    S.vivid = e.target.value / 100; fill(e.target);
+    $('vividVal').textContent = S.vivid < 0.9 ? 'ひかえめ' : S.vivid > 1.3 ? 'くっきり' : S.vivid > 1.1 ? 'あざやか' : 'ふつう';
+    later();
+  });
+  $('removeBg').addEventListener('change', e => { S.removeBg = e.target.checked; convert(false); });
+  $('keepOutline').addEventListener('change', e => { S.keepOutline = e.target.checked; convert(false); });
+  $('dither').addEventListener('change', e => { S.dither = e.target.checked; convert(false); });
+  fill($('maxColors')); fill($('vivid'));
+
+  let rz;
+  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.grid) { layout(); S.animStart = 0; loop(); } }, 100); });
+  const redrawAll = () => { S.animStart = 0; loop(); edDraw(); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
+  new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ほかのページの中に埋め込まれているときは、ダウンロードが止められていることが多いので長押し保存だけにする
+  try { if (window.self !== window.top) $('downloadBtn').hidden = true; } catch { $('downloadBtn').hidden = true; }
+
+  // ---- はじめは見本で ----
+  const sample = sampleImage();
+  setColor(S.color);
+  setSource(sample, '見本: いちごちゃん', sample.toDataURL());
+})();
+</script>
