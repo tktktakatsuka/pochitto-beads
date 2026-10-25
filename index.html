@@ -804,6 +804,8 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
     $('statSize').textContent = `${S.cols}×${S.rows}`;
     $('statTotal').textContent = total.toLocaleString();
     $('statPlates').textContent = Math.ceil(S.cols / 29) * Math.ceil(S.rows / 29);
+    // サイズボタンはいまの図案の横幅に合わせる（AI や「もどす」で大きさが変わったときも）。どれにも当てはまらなければどれも選ばない
+    document.querySelectorAll('#sizeSeg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === S.cols));
     const list = $('colorList'); list.innerHTML = '';
     if (!u.length) { list.innerHTML = '<li class="empty-note">ビーズがありません。<br>「背景をぬく」をオフにしてみてください。</li>'; }
     u.forEach(([p, c]) => {
