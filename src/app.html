@@ -300,6 +300,28 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 }
 .ai-form textarea:focus { outline: none; border-color: var(--accent); }
 .ai-form .primary, .ai-form .ghost { flex-shrink: 0; }
+.clip-btn {
+  flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: var(--accent-soft); color: var(--accent-deep); position: relative;
+}
+.clip-btn svg { width: 22px; height: 22px; }
+.clip-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.clip-btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.clip-btn.full, .clip-btn.busy { opacity: .4; pointer-events: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ai-attach { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-thumbs:empty { display: none; }
+.ai-thumb { position: relative; width: 60px; height: 60px; }
+.ai-thumb img { width: 60px; height: 60px; object-fit: cover; border-radius: 12px; border: 1.5px solid var(--line); display: block; }
+.ai-thumb b { position: absolute; left: 4px; top: 4px; background: var(--ink); color: var(--card); font-size: 11px; line-height: 18px; min-width: 18px; text-align: center; border-radius: 9px; }
+.ai-thumb button {
+  position: absolute; right: -8px; top: -8px; width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--card); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,.25); font: inherit; font-weight: 900; font-size: 14px; line-height: 1;
+}
+.link-btn { font: inherit; font-size: 13px; font-weight: 700; color: var(--accent-deep); background: none; border: 0; padding: 8px 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.msg-imgs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.msg-imgs img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; }
 @media (prefers-reduced-motion: reduce) { .thinking i { animation: none; } }
 
 /* modal */
@@ -413,12 +435,21 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
         <button type="button">色を6色にへらして</button>
         <button type="button">15×15で小さなさくらんぼを作って</button>
       </div>
+      <div class="ai-attach" id="aiAttach" hidden>
+        <div class="ai-thumbs" id="aiThumbs"></div>
+        <button class="link-btn" type="button" id="aiAttachSrc">読み込んだ画像をつける</button>
+      </div>
       <form class="ai-form" id="aiForm">
+        <label class="clip-btn" id="aiClip" hidden title="画像をつける">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8L10 17.9a1.7 1.7 0 0 1-2.4-2.4l8-8"/></svg>
+          <span class="sr">画像をつける</span>
+          <input type="file" id="aiFile" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+        </label>
         <textarea id="aiInput" rows="1" placeholder="どうしたい？ 例: リボンをつけて" aria-label="AIへのお願い"></textarea>
         <button class="primary" type="submit" id="aiSend">送る</button>
         <button class="ghost" type="button" id="aiStop" hidden>止める</button>
       </form>
-      <p class="note">AIは、このページを開いている人のClaudeの利用枠を使います。はじめて使うときに確認が出ます。</p>
+      <p class="note" id="aiNote">AIは、このページを開いている人のClaudeの利用枠を使います。はじめて使うときに確認が出ます。</p>
     </section>
 
     <section class="panel colors" aria-label="使う色と数">
@@ -644,7 +675,8 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   }
 
   // ---- 変換 ----
-  function convert(animate = true) {
+  /** keepHistory: AI が作り直すときは「もどす」の記録を残す（AIの変更をもどせるように） */
+  function convert(animate = true, keepHistory = false) {
     const sd = S.srcData; if (!sd) return;
     const cols = S.width, rows = Math.max(1, Math.min(cols * 2, Math.round(cols * sd.h / sd.w)));
     const n = cols * rows;
@@ -700,7 +732,8 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
         for (let i = 0; i < n; i++) if (ok[i]) grid[i] = nearest(labs[i], keep);
       }
     }
-    S.cols = cols; S.rows = rows; S.grid = grid; S.history = []; S.future = [];
+    S.cols = cols; S.rows = rows; S.grid = grid;
+    if (!keepHistory) { S.history = []; S.future = []; }
     S.animStart = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? performance.now() : 0;
     layout(); refreshMeta(); loop();
   }
@@ -905,11 +938,19 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   // 塗る
   let strokeSaved = false, strokeDone = false;
   function beginStroke() { strokeSaved = false; strokeDone = false; }
-  // 「もどす」用の記録。AIが大きさの違う図案を作ることもあるので、マスと一緒に大きさも残す
-  const snap = () => ({ g: S.grid.slice(), c: S.cols, r: S.rows });
+  // 「もどす」用の記録。AIが大きさの違う図案を作ったり、別の画像から作り直したりもするので、
+  // マスと一緒に大きさ・元の画像・設定も残す（画像は参照だけなので軽い）
+  const SETTING_KEYS = ['width', 'maxColors', 'vivid', 'removeBg', 'keepOutline', 'dither'];
+  const snap = () => ({
+    g: S.grid.slice(), c: S.cols, r: S.rows,
+    src: S.src, sd: S.srcData, thumb: $('thumb').src, name: $('srcName').textContent,
+    set: Object.fromEntries(SETTING_KEYS.map(k => [k, S[k]])),
+  });
   function restore(s) {
     const resized = s.c !== S.cols || s.r !== S.rows;
     S.grid = s.g; S.cols = s.c; S.rows = s.r;
+    S.src = s.src; S.srcData = s.sd; $('thumb').src = s.thumb; $('srcName').textContent = s.name;
+    Object.assign(S, s.set); syncControls();
     if (resized) { layout(); if (ed.open) { ed.W = 0; edResize(); } }
   }
   function record() {
@@ -1116,7 +1157,13 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
-  document.addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+  document.addEventListener('paste', e => {
+    const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    // AI の入力欄に貼ったときは、AI に見せる画像として添付する
+    if (document.activeElement === $('aiInput') && ai.imageLimits) { e.preventDefault(); attachImages(files); return; }
+    loadFile(files[0]);
+  });
 
   // ---- 設定 ----
   function seg(id, fn) {
@@ -1229,6 +1276,12 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
 - 色を減らす: reduce_colors
 - 目・口・リボンなど小さな部分は、まわりと区別しやすい色を選ぶ。
 
+## 画像がついているとき
+- お願いに「ついている画像」とあれば、その画像を見てこたえる。画像は「画像1」「画像2」…の順番。
+- 画像をそのまま図案にしたいときは convert_image を使う（image に画像の番号）。大きさや色数は、お願いに合わせて決める。そのあとの手直しは、ほかの道具で。
+- 画像を参考に自分で描くとき（「この絵みたいなリボンをつけて」など）は、画像を見て set_cells や draw_rows で描く。
+- 画像に写っている人について、だれなのかを推測したり言ったりしない。
+
 ## 返事
 - 道具を使い終わったら、何をしたかを1〜2文で伝える。図案の文字列は返事に書かない。
 - お願いがあいまいなときは、いちばん自然な形で作ってから「〜にもできるよ」と一言そえる。
@@ -1336,16 +1389,90 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
       },
     },
     {
+      name: 'convert_image',
+      description: '画像から図案を作り直す（いまの図案は置きかわる）。image は 0 ならいま読み込んでいる画像、1 以上なら今回のお願いについている画像の番号。width は横のビーズ数(5〜58)、max_colors は使う色の数(2〜30)。省略した設定はいまのまま。',
+      inputSchema: { type: 'object', properties: {
+        image: { type: 'integer' }, width: { type: 'integer' }, max_colors: { type: 'integer' },
+        remove_bg: { type: 'boolean', description: 'まわりの背景を空きマスにする' },
+        keep_outline: { type: 'boolean', description: '黒い輪郭線を優先して残す' },
+      }, required: ['image'] },
+      async execute({ image, width, max_colors, remove_bg, keep_outline }) {
+        const k = int(image, 'image', 0, ai.sent.length);
+        const w = width == null ? S.width : int(width, 'width', 5, 58);
+        const mc = max_colors == null ? S.maxColors : int(max_colors, 'max_colors', 2, 30);
+        let img = null, att = null;
+        if (k > 0) { att = ai.sent[k - 1]; img = await loadImage(att.url); }
+        else if (!S.srcData) throw new Error('読み込んでいる画像がありません');
+        return aiChange(() => {
+          if (img) {
+            S.src = img; S.srcData = readPixels(img);
+            $('thumb').src = att.url; $('srcName').textContent = att.name;
+          }
+          S.width = w; S.maxColors = mc;
+          if (typeof remove_bg === 'boolean') S.removeBg = remove_bg;
+          if (typeof keep_outline === 'boolean') S.keepOutline = keep_outline;
+          convert(true, true); syncControls();
+          return `${k ? `画像${k}` : '読み込んだ画像'}から、${S.cols}×${S.rows}マス・${usage().length}色の図案を作りました`;
+        });
+      },
+    },
+    {
       name: 'get_pattern',
       description: 'いまの図案を文字で返す（形式はお願いについている「いまの図案」と同じ）。変更のあとで確かめたいときに使う。',
       execute: () => patternText(),
     },
   ];
 
+  // ---- AI に見せる画像 ----
+  // ai.pending: 送る前に添付した画像 / ai.sent: いま送っているお願いの画像（convert_image が使う）
+  ai.pending = []; ai.sent = []; ai.imageLimits = null;
+  const loadImage = url => new Promise((ok, ng) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ng(new Error('画像を読み込めませんでした')); im.src = url; });
+  function renderAttach() {
+    const box = $('aiThumbs'); box.innerHTML = '';
+    ai.pending.forEach((a, i) => {
+      const d = document.createElement('div'); d.className = 'ai-thumb';
+      d.innerHTML = `<img alt=""><b>${i + 1}</b><button type="button" aria-label="画像${i + 1}をはずす">×</button>`;
+      d.querySelector('img').src = a.url; d.querySelector('img').alt = a.name;
+      d.querySelector('button').addEventListener('click', () => { ai.pending.splice(i, 1); renderAttach(); });
+      box.appendChild(d);
+    });
+    const full = ai.pending.length >= (ai.imageLimits?.maxCount ?? 0);
+    $('aiAttachSrc').hidden = full || !S.src;
+    $('aiClip').classList.toggle('full', full);
+  }
+  function attachImages(files) {
+    const lim = ai.imageLimits; if (!lim) return;
+    for (const f of files) {
+      if (ai.pending.length >= lim.maxCount) { toast(`画像は${lim.maxCount}枚までです`); break; }
+      if (!lim.mediaTypes.includes(f.type)) { toast('JPEG・PNG・WebP・GIF の画像をえらんでください'); continue; }
+      if (f.size > lim.maxInputBytes) { toast('画像が大きすぎます。小さい画像をえらんでください'); continue; }
+      ai.pending.push({ blob: f, url: URL.createObjectURL(f), name: f.name || '貼り付けた画像' });
+    }
+    renderAttach();
+  }
+  $('aiFile').addEventListener('change', e => { attachImages([...e.target.files]); e.target.value = ''; });
+  // 読み込んでいる画像(長い辺1024まで)を JPEG にして添付する
+  $('aiAttachSrc').addEventListener('click', () => {
+    const sd = S.srcData; if (!sd) return;
+    const c = document.createElement('canvas'); c.width = sd.w; c.height = sd.h;
+    const g = c.getContext('2d');
+    g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, sd.w, sd.h);   // 透明な部分は白にする(JPEG は透明にできない)
+    const tmp = document.createElement('canvas'); tmp.width = sd.w; tmp.height = sd.h;
+    tmp.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(sd.d), sd.w, sd.h), 0, 0);
+    g.drawImage(tmp, 0, 0);
+    c.toBlob(b => { if (b) attachImages([new File([b], $('srcName').textContent + '.jpg', { type: 'image/jpeg' })]); }, 'image/jpeg', 0.9);
+  });
+
   const aiLog = $('aiLog');
-  function addMsg(text) {
+  function addMsg(text, images = []) {
     const el = document.createElement('div');
-    el.className = 'msg me'; el.textContent = text;
+    el.className = 'msg me';
+    if (images.length) {
+      const row = document.createElement('div'); row.className = 'msg-imgs';
+      images.forEach(a => { const im = document.createElement('img'); im.src = a.url; im.alt = a.name; row.appendChild(im); });
+      el.appendChild(row);
+    }
+    el.appendChild(document.createTextNode(text));
     aiLog.appendChild(el); aiLog.scrollTop = aiLog.scrollHeight;
   }
   function addBot() {
@@ -1374,36 +1501,50 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
       case 'refused': return 'そのお願いにはこたえられませんでした。ちがう言い方で試してみてください。';
       case 'empty_completion': return 'うまく返事ができませんでした。お願いを短くして試してみてください。';
       case 'prompt_too_large': return '図案が大きすぎて読み切れませんでした。サイズを小さくして試してください。';
+      case 'image_rejected': return 'その画像は送れませんでした。ほかの画像をえらんでください。';
+      case 'images_unavailable': return 'ここでは画像を送れません。文字だけで送ってください。';
       default: return 'うまくいきませんでした。もう一度送ってみてください。';
     }
   }
   function setAiBusy(b) {
     $('aiSend').hidden = b; $('aiStop').hidden = !b;
-    $('aiInput').disabled = b;
+    $('aiInput').disabled = b; $('aiFile').disabled = b; $('aiAttachSrc').disabled = b;
+    $('aiClip').classList.toggle('busy', b);
     document.querySelectorAll('#aiChips button').forEach(x => x.disabled = b);
   }
   async function aiSend(text) {
     text = text.trim();
+    const images = ai.pending;
+    if (!text && images.length) text = 'この画像を見てね';
     if (!text || ai.busy || !ai.sample) return;
     ai.busy = true; ai.turnSaved = false; setAiBusy(true);
-    addMsg(text);
+    ai.sent = images; ai.pending = []; renderAttach();
+    addMsg(text, images);
     const bot = addBot();
     ai.addAct = t => bot.addAct(t);
     const ctl = ai.ctl = new AbortController();
-    // 指示はいつも先頭に。会話は新しいほうから10ターン分だけ送る
+    const imageNote = images.length ? `\n\nついている画像: ${images.map((a, i) => `画像${i + 1}「${a.name}」`).join('、')}` : '';
+    // 指示はいつも先頭に。会話は新しいほうから10ターン分だけ送る。
+    // 前のお願いの画像は送り直されないので、会話の記録には「画像をつけた」とだけ残す
     const input = [
       { role: 'user', content: AI_RULES },
       ...ai.turns.slice(-10),
-      { role: 'user', content: `いまの図案:\n${patternText()}\n\nお願い: ${text}` },
+      { role: 'user', content: `いまの図案:\n${patternText()}\n\nお願い: ${text}${imageNote}` },
     ];
+    const opts = { tools: AI_TOOLS, signal: ctl.signal, onText: ({ text: t }) => bot.setText(t) };
+    if (images.length) opts.images = images.map(a => a.blob);
     try {
-      const { text: answer } = await ai.sample(input, { tools: AI_TOOLS, signal: ctl.signal, onText: ({ text: t }) => bot.setText(t) });
+      const { text: answer } = await ai.sample(input, opts);
       bot.setText(answer);
-      ai.turns.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
+      const sentNote = images.length ? `（画像を${images.length}枚つけて送った）` : '';
+      ai.turns.push({ role: 'user', content: text + sentNote }, { role: 'assistant', content: answer });
     } catch (e) {
       bot.setText(e?.text ?? '');
       bot.setError(aiErrorText(e?.code));
-      if (AI_STOP_FOR_GOOD.includes(e?.code)) { ai.sample = null; $('aiForm').hidden = true; $('aiChips').hidden = true; }
+      if (AI_STOP_FOR_GOOD.includes(e?.code)) { ai.sample = null; $('aiForm').hidden = true; $('aiChips').hidden = true; $('aiAttach').hidden = true; }
+      if (e?.code === 'images_unavailable') { ai.imageLimits = null; $('aiClip').hidden = true; $('aiAttach').hidden = true; }
+      // 送れなかった画像は、もう一度送れるように戻しておく
+      if (images.length && ['image_rejected', 'rate_limited', 'upstream_error', 'cancelled'].includes(e?.code) && !ai.pending.length) { ai.pending = images; renderAttach(); }
     } finally {
       ai.busy = false; ai.addAct = () => {};
       setAiBusy(false); bot.done();
@@ -1440,6 +1581,13 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
       const lim = await s.limits().catch(() => null);
       if (!lim?.tools) return;
       ai.sample = s; $('aiPanel').hidden = false;
+      if (lim.images) {
+        ai.imageLimits = lim.images;
+        $('aiClip').hidden = false; $('aiAttach').hidden = false;
+        $('aiFile').accept = lim.images.mediaTypes.join(',');
+        $('aiNote').textContent = 'AIは、このページを開いている人のClaudeの利用枠を使います。はじめて使うときに確認が出ます。画像は、つけたときだけClaudeに送られます。';
+        renderAttach();
+      }
     }).catch(() => {});
   }
 
