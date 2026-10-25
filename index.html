@@ -292,6 +292,26 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 .ed-palette .sep { flex: 0 0 auto; width: 1.5px; height: 30px; align-self: center; background: var(--line); margin: 0 6px; }
 .ed-cur { font-size: 12.5px; color: var(--ink-soft); margin: 0; }
 
+/* ビーズ写真の読み取り */
+.read-btn { display: flex; align-items: center; justify-content: center; gap: 8px; position: relative; text-align: center; }
+.read-btn svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.read-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.read-btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.reader { z-index: 45; }
+#rdCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.loupe { position: absolute; top: 12px; width: 132px; height: 132px; border-radius: 50%; border: 3px solid var(--card); box-shadow: 0 6px 18px rgba(0,0,0,.35); pointer-events: none; }
+.rd-panel { gap: 10px; }
+.rd-counts { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper .label { font-weight: 900; font-size: 14px; margin-right: 4px; }
+.stepper button { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent-soft); color: var(--accent-deep); font: inherit; font-weight: 900; font-size: 20px; cursor: pointer; }
+.stepper input { width: 58px; height: 44px; text-align: center; font: inherit; font-weight: 900; font-size: 18px; color: var(--ink); background: var(--card-soft); border: 1.5px solid var(--line); border-radius: 12px; font-variant-numeric: tabular-nums; }
+.rd-bottom { display: flex; gap: 14px; align-items: center; max-width: 640px; width: 100%; margin: 0 auto; }
+#rdPreview { width: 96px; height: 96px; flex-shrink: 0; border-radius: 12px; background: var(--board); image-rendering: pixelated; }
+.rd-side { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.rd-side .hint { margin: 0; }
+.rd-side .link-btn { align-self: flex-start; position: relative; }
+
 /* AI とおしゃべり */
 .ai-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ai-log { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding: 2px; }
@@ -388,6 +408,12 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
         </div>
         <input type="file" id="file" accept="image/*">
       </label>
+      <label class="ghost read-btn" id="readBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="6" cy="6" r="2.6"/><circle cx="12" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="12" cy="12" r="2.6"/><circle cx="18" cy="12" r="2.6"/><circle cx="6" cy="18" r="2.6"/><circle cx="12" cy="18" r="2.6"/><circle cx="18" cy="18" r="2.6"/></g></svg>
+        ビーズ作品の写真から読み取る
+        <input type="file" id="readFile" accept="image/*">
+      </label>
+      <p class="hint">できあがったビーズ作品の写真なら、こちらがおすすめ。ビーズ1粒ずつ色を読み取ります。</p>
 
       <h2 class="sec-title">図案のサイズ</h2>
       <div class="field">
@@ -512,6 +538,45 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   </div>
 </div>
 
+<div class="editor reader" id="reader" hidden role="dialog" aria-modal="true" aria-label="ビーズ作品の写真から読み取る">
+  <div class="ed-bar">
+    <button class="ghost" type="button" id="rdCancel">やめる</button>
+    <span class="ed-title">ビーズ写真を読み取る</span>
+    <button class="primary" type="button" id="rdApply">読み取る</button>
+  </div>
+  <div class="ed-stage" id="rdStage">
+    <canvas id="rdCanvas" aria-label="写真。4つの角のつまみを、作品のいちばん外側のビーズの真ん中に合わせます"></canvas>
+    <canvas id="rdLoupe" class="loupe" hidden aria-hidden="true"></canvas>
+    <div class="ed-hint" id="rdHint">4つの角のつまみを、いちばん外側のビーズの真ん中に合わせてね</div>
+  </div>
+  <div class="ed-panel rd-panel">
+    <div class="rd-counts">
+      <div class="stepper" role="group" aria-label="横の粒数">
+        <span class="label">横</span>
+        <button type="button" data-k="cols" data-d="-1" aria-label="横を1へらす">－</button>
+        <input type="number" id="rdCols" min="3" max="58" inputmode="numeric" aria-label="横の粒数">
+        <button type="button" data-k="cols" data-d="1" aria-label="横を1ふやす">＋</button>
+      </div>
+      <div class="stepper" role="group" aria-label="縦の粒数">
+        <span class="label">縦</span>
+        <button type="button" data-k="rows" data-d="-1" aria-label="縦を1へらす">－</button>
+        <input type="number" id="rdRows" min="3" max="58" inputmode="numeric" aria-label="縦の粒数">
+        <button type="button" data-k="rows" data-d="1" aria-label="縦を1ふやす">＋</button>
+      </div>
+      <button class="ghost" type="button" id="rdAuto">自動で数える</button>
+    </div>
+    <div class="rd-bottom">
+      <canvas id="rdPreview" aria-label="読み取った図案のプレビュー"></canvas>
+      <div class="rd-side">
+        <label class="toggle"><span class="toggle-text"><b>プレートをぬく</b><span>ビーズがないところを空きマスにします</span></span><input type="checkbox" id="rdBg" checked><span class="sw"></span></label>
+        <label class="toggle"><span class="toggle-text"><b>明るさをととのえる</b><span>暗い写真で白が灰色に見えるときに</span></span><input type="checkbox" id="rdLevels" checked><span class="sw"></span></label>
+        <p class="hint">写真の上の点が、どれもビーズの上に乗るように合わせると、きれいに読み取れます。作品を大きく、真上から撮った写真ほど正確です。</p>
+        <label class="link-btn">写真をえらびなおす<input type="file" id="rdFile" accept="image/*" class="sr"></label>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-head">
@@ -526,7 +591,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
 <div class="modal" id="confirmModal" hidden>
   <div class="modal-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
     <h2 class="sec-title" id="confirmTitle">手直しした図案が消えます</h2>
-    <p id="confirmText">画像から作り直すと、ペンやAIで変えたところは消えて、元にもどせません。作り直しますか？</p>
+    <p id="confirmText">いまの図案（ペンやAIで変えたところ、写真から読み取った図案）は消えて、元にもどせません。作り直しますか？</p>
     <div class="confirm-actions">
       <button class="ghost" type="button" id="confirmNo">やめる</button>
       <button class="primary" type="button" id="confirmYes">作り直す</button>
@@ -625,9 +690,9 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   }
 
   /** 画像を、長い辺が MAX_SOURCE_SIDE 以下の大きさでピクセルにする。 */
-  function readPixels(src) {
+  function readPixels(src, maxSide = MAX_SOURCE_SIDE) {
     const sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
-    const k = Math.min(1, MAX_SOURCE_SIDE / Math.max(sw, sh));
+    const k = Math.min(1, maxSide / Math.max(sw, sh));
     const w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d', { willReadFrequently: true });
@@ -715,30 +780,25 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
         ok[i] = 1; labs[i] = rgbToLab(rgb[i*3], rgb[i*3+1], rgb[i*3+2]);
       }
     }
-    // 背景ぬき: 四隅の色に近いマスを、外側からつながっている分だけ空きにする
-    if (S.removeBg) {
-      const corners = [0, cols - 1, (rows - 1) * cols, n - 1].filter(i => ok[i]);
-      if (corners.length) {
-        const ref = [0, 0, 0];
-        corners.forEach(i => { for (let k = 0; k < 3; k++) ref[k] += labs[i][k] / corners.length; });
-        const seen = new Uint8Array(n), stack = [];
-        for (let x = 0; x < cols; x++) stack.push(x, (rows - 1) * cols + x);
-        for (let y = 0; y < rows; y++) stack.push(y * cols, y * cols + cols - 1);
-        while (stack.length) {
-          const i = stack.pop();
-          if (seen[i]) continue; seen[i] = 1;
-          if (!ok[i] || dE(labs[i], ref) >= BG_THRESHOLD * BG_THRESHOLD) continue;
-          ok[i] = 0;
-          const x = i % cols, y = (i - x) / cols;
-          if (x > 0) stack.push(i - 1); if (x < cols - 1) stack.push(i + 1);
-          if (y > 0) stack.push(i - cols); if (y < rows - 1) stack.push(i + cols);
-        }
-      }
-    }
-    const keep = chooseColors(labs.filter((_, i) => ok[i]), S.maxColors);
+    const grid = finishGrid(cols, rows, rgb, ok, labs, { removeBg: S.removeBg, maxColors: S.maxColors, dither: S.dither });
+    S.cols = cols; S.rows = rows; S.grid = grid;
+    if (!keepHistory) { S.history = []; S.future = []; }
+    S.animStart = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? performance.now() : 0;
+    layout(); refreshMeta(); loop();
+  }
+
+  /**
+   * マスごとの色(rgb・labs)から図案を作る。変換と「ビーズ写真の読み取り」で共通。
+   * 背景ぬき: 外側の色に近いマスを、外側からつながっている分だけ空きにする。
+   * そのあと使う色を選んで、それぞれのマスを一番近い色にする。
+   */
+  function finishGrid(cols, rows, rgb, ok, labs, { removeBg, maxColors, dither, bgThreshold = BG_THRESHOLD, bgFromBorder = false }) {
+    const n = cols * rows;
+    if (removeBg) removeBackgroundCells(cols, rows, ok, labs, bgThreshold, bgFromBorder);
+    const keep = chooseColors(labs.filter((_, i) => ok[i]), maxColors);
     const grid = new Int16Array(n).fill(-1);
     if (keep.length) {
-      if (S.dither) {
+      if (dither) {
         const buf = Float32Array.from(rgb);
         for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
           const i = y * cols + x; if (!ok[i]) continue;
@@ -756,10 +816,33 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
         for (let i = 0; i < n; i++) if (ok[i]) grid[i] = nearest(labs[i], keep);
       }
     }
-    S.cols = cols; S.rows = rows; S.grid = grid;
-    if (!keepHistory) { S.history = []; S.future = []; }
-    S.animStart = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? performance.now() : 0;
-    layout(); refreshMeta(); loop();
+    return grid;
+  }
+  /** 背景ぬき。外側の色に近いマスのうち、外側からつながっているものの ok を 0 にする */
+  function removeBackgroundCells(cols, rows, ok, labs, bgThreshold, bgFromBorder) {
+    const n = cols * rows;
+    // ふつうは四隅の色を背景とする。ビーズ写真では四隅にビーズがあることも多いので、外周のマスの色の中央値を使う
+    const refCells = bgFromBorder
+      ? [...Array(n).keys()].filter(i => ok[i] && (i < cols || i >= n - cols || i % cols === 0 || i % cols === cols - 1))
+      : [0, cols - 1, (rows - 1) * cols, n - 1].filter(i => ok[i]);
+    if (!refCells.length) return;
+    const ref = [0, 1, 2].map(k => median(refCells.map(i => labs[i][k])));
+    const seen = new Uint8Array(n), stack = [];
+    for (let x = 0; x < cols; x++) stack.push(x, (rows - 1) * cols + x);
+    for (let y = 0; y < rows; y++) stack.push(y * cols, y * cols + cols - 1);
+    while (stack.length) {
+      const i = stack.pop();
+      if (seen[i]) continue; seen[i] = 1;
+      if (!ok[i] || dE(labs[i], ref) >= bgThreshold * bgThreshold) continue;
+      ok[i] = 0;
+      const x = i % cols, y = (i - x) / cols;
+      if (x > 0) stack.push(i - 1); if (x < cols - 1) stack.push(i + 1);
+      if (y > 0) stack.push(i - cols); if (y < rows - 1) stack.push(i + cols);
+    }
+  }
+  function median(a) {
+    const s = Float64Array.from(a).sort();
+    return s.length ? s[s.length >> 1] : 0;
   }
 
   // ---- 描画 ----
@@ -1144,6 +1227,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (!$('confirmModal').hidden) closeConfirm(false);
+      else if (rd.open) closeReader();
       else if (!$('modal').hidden) $('modal').hidden = true;
       else closeEditor();
     }
@@ -1255,6 +1339,306 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
   new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
+  // ---- ビーズ作品の写真から読み取る ----
+  // 写真の上で4つの角（いちばん外側のビーズの真ん中）を合わせ、横と縦の粒数を決めると、
+  // 遠近のゆがみを直しながら、ビーズ1粒ずつ色を読む
+  const rd = { open: false, img: null, url: '', name: '', px: null, corners: null, cols: 29, rows: 29, drag: -1, grab: null, v: { k: 1, ox: 0, oy: 0, W: 0, H: 0 }, read: null, raf: 0, pushed: false };
+  const rdCanvas = $('rdCanvas'), rdCtx = rdCanvas.getContext('2d');
+  const loupe = $('rdLoupe'), loupeCtx = loupe.getContext('2d');
+
+  /** 正方形 (u,v)∈[0,1]² を、4つの角 p0(左上) p1(右上) p2(右下) p3(左下) の四角形にうつす（射影変換） */
+  function homography([p0, p1, p2, p3]) {
+    const dx1 = p1.x - p2.x, dx2 = p3.x - p2.x, dx3 = p0.x - p1.x + p2.x - p3.x;
+    const dy1 = p1.y - p2.y, dy2 = p3.y - p2.y, dy3 = p0.y - p1.y + p2.y - p3.y;
+    const det = dx1 * dy2 - dx2 * dy1;
+    let g = 0, h = 0;
+    if (Math.abs(det) > 1e-9 && (Math.abs(dx3) > 1e-9 || Math.abs(dy3) > 1e-9)) {
+      g = (dx3 * dy2 - dx2 * dy3) / det; h = (dx1 * dy3 - dx3 * dy1) / det;
+    }
+    const a = p1.x - p0.x + g * p1.x, b = p3.x - p0.x + h * p3.x, c = p0.x;
+    const d = p1.y - p0.y + g * p1.y, e = p3.y - p0.y + h * p3.y, f = p0.y;
+    return (u, v) => { const w = g * u + h * v + 1; return { x: (a * u + b * v + c) / w, y: (d * u + e * v + f) / w }; };
+  }
+  const rdUV = (i, n) => n > 1 ? i / (n - 1) : 0.5;
+
+  /** ビーズ1粒ずつ色を読む。真ん中の穴をよけて、穴のまわりの輪の24か所の色の中央値をとる */
+  function readBeads() {
+    const { px, cols, rows } = rd, P = homography(rd.corners);
+    const n = cols * rows, du = cols > 1 ? 1 / (cols - 1) : 1, dv = rows > 1 ? 1 / (rows - 1) : 1;
+    const rgb = new Float32Array(n * 3), ok = new Uint8Array(n), labs = new Array(n), centers = new Array(n);
+    const R = [], G = [], B = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const u = rdUV(i, cols), v = rdUV(j, rows), c = P(u, v), ex = P(u + du, v), ey = P(u, v + dv);
+      const pitch = Math.min(Math.hypot(ex.x - c.x, ex.y - c.y), Math.hypot(ey.x - c.x, ey.y - c.y));
+      const idx = j * cols + i;
+      centers[idx] = { x: c.x, y: c.y, pitch };
+      R.length = G.length = B.length = 0;
+      for (const rr of [0.27, 0.36]) for (let t = 0; t < 12; t++) {
+        const a = t * Math.PI / 6 + rr * 3;
+        const x = Math.round(c.x + Math.cos(a) * rr * pitch), y = Math.round(c.y + Math.sin(a) * rr * pitch);
+        if (x < 0 || y < 0 || x >= px.w || y >= px.h) continue;
+        const o = (y * px.w + x) * 4;
+        R.push(px.d[o]); G.push(px.d[o + 1]); B.push(px.d[o + 2]);
+      }
+      if (!R.length) continue;
+      rgb[idx * 3] = median(R); rgb[idx * 3 + 1] = median(G); rgb[idx * 3 + 2] = median(B);
+      ok[idx] = 1;
+    }
+    // 明るさをととのえる: 写真が暗かったり色がかぶっていたりすると、白いビーズが灰色に、緑が深緑に読めてしまう。
+    // 読んだ色のうち明るいほう2%を白に、暗いほう2%を黒に近づけるよう、R・G・B それぞれ引きのばす（カメラのホワイトバランスと同じ考え方）
+    if ($('rdLevels').checked) {
+      // 何もないプレートは白いビーズより明るく写ることが多いので、先にプレートの部分を見つけて、ビーズだけで決める
+      const beadOnly = ok.slice(), rawLabs = new Array(n);
+      for (let i = 0; i < n; i++) if (ok[i]) rawLabs[i] = rgbToLab(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
+      removeBackgroundCells(cols, rows, beadOnly, rawLabs, 20, true);
+      const use = beadOnly.reduce((a, b) => a + b, 0) >= 10 ? beadOnly : ok;
+      for (let k = 0; k < 3; k++) {
+        const vals = [];
+        for (let i = 0; i < n; i++) if (use[i]) vals.push(rgb[i * 3 + k]);
+        if (vals.length < 10) break;
+        const s = Float64Array.from(vals).sort();
+        const lo = s[Math.floor(s.length * 0.02)], hi = s[Math.floor(s.length * 0.98)];
+        if (hi - lo < 40) continue;
+        for (let i = 0; i < n; i++) if (ok[i]) rgb[i * 3 + k] = Math.max(0, Math.min(255, 28 + (rgb[i * 3 + k] - lo) / (hi - lo) * (245 - 28)));
+      }
+    }
+    for (let i = 0; i < n; i++) if (ok[i]) labs[i] = rgbToLab(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
+    const grid = finishGrid(cols, rows, rgb, ok, labs, { removeBg: $('rdBg').checked, maxColors: 30, dither: false, bgThreshold: 20, bgFromBorder: true });
+    return { grid, centers };
+  }
+
+  /**
+   * 粒数を数える。作品の上を横（縦）に5本の線でなぞって明るさを調べ、
+   * 「ビーズ→すき間→ビーズ」のくり返しが端から端までで何回あるかを、いちばん強く出る回数から決める
+   */
+  function rdAutoCount() {
+    // N: 1本の線で明るさを調べる点の数。58粒でも1粒あたり20点以上になるように細かくとる
+    const { px } = rd, P = homography(rd.corners), N = 1200;
+    const lumAt = p => {
+      const x = Math.round(p.x), y = Math.round(p.y);
+      if (x < 0 || y < 0 || x >= px.w || y >= px.h) return 0;
+      const o = (y * px.w + x) * 4;
+      return 0.299 * px.d[o] + 0.587 * px.d[o + 1] + 0.114 * px.d[o + 2];
+    };
+    // 線の明るさから、ゆっくりした変化（輪郭や大きな色の面）を引いて、ビーズの細かいくり返しだけを残す
+    const highpass = L => {
+      const r = Math.round(N / 8), pre = new Float64Array(N + 1), out = new Float64Array(N);
+      for (let k = 0; k < N; k++) pre[k + 1] = pre[k] + L[k];
+      for (let k = 0; k < N; k++) { const a = Math.max(0, k - r), b = Math.min(N, k + r + 1); out[k] = L[k] - (pre[b] - pre[a]) / (b - a); }
+      return out;
+    };
+    const count = alongU => {
+      const lines = [0.2, 0.35, 0.5, 0.65, 0.8].map(t => {
+        const L = new Float64Array(N);
+        for (let k = 0; k < N; k++) { const s = k / (N - 1); L[k] = lumAt(alongU ? P(s, t) : P(t, s)); }
+        return highpass(L);
+      });
+      // 1) どれだけずらすと自分と似るか（自己相関）。いちばん小さい「よく似る間隔」を1粒の間隔とする
+      const minLag = Math.floor((N - 1) / 57), maxLag = Math.floor((N - 1) / 2);
+      const ac = new Float64Array(maxLag + 2);
+      for (const L of lines) for (let lag = minLag - 1; lag <= maxLag + 1; lag++) {
+        let s = 0; for (let k = 0; k + lag < N; k++) s += L[k] * L[k + lag];
+        ac[lag] += s / (N - lag);
+      }
+      const isPeak = lag => ac[lag] > ac[lag - 1] && ac[lag] >= ac[lag + 1];
+      let top = 0;
+      for (let lag = minLag; lag <= maxLag; lag++) if (isPeak(lag)) top = Math.max(top, ac[lag]);
+      let period = 0;
+      for (let lag = minLag; lag <= maxLag && !period; lag++) if (isPeak(lag) && ac[lag] >= top * 0.75) period = lag;
+      if (!period) return 3;
+      // 山の両どなりの値から、間隔を小数まで求める（細かいビーズでも粒数がずれないように）
+      const a0 = ac[period - 1], a1 = ac[period], a2 = ac[period + 1], den = a0 - 2 * a1 + a2;
+      const exact = period + (den < 0 ? 0.5 * (a0 - a2) / den : 0);
+      const rough = Math.min(58, Math.max(3, Math.round((N - 1) / exact) + 1));
+      // 2) その近く（と、1つおきのビーズを1粒と数えたときのための2倍の近く）で、
+      //    端から端までのくり返しの回数がいちばんはっきり出る粒数にしぼる
+      const cands = new Set();
+      for (const base of [rough, rough * 2 - 1]) for (let c = base - 3; c <= base + 3; c++) if (c >= 3 && c <= 58) cands.add(c);
+      let best = rough, bestScore = -1;
+      for (const c of cands) {
+        const w = 2 * Math.PI * (c - 1) / (N - 1);
+        let score = 0;
+        for (const L of lines) {
+          let re = 0, im = 0;
+          for (let k = 0; k < N; k++) { re += L[k] * Math.cos(w * k); im += L[k] * Math.sin(w * k); }
+          score += Math.hypot(re, im);
+        }
+        if (score > bestScore) { bestScore = score; best = c; }
+      }
+      return best;
+    };
+    return { cols: count(true), rows: count(false) };
+  }
+
+  function rdLayout() {
+    const r = $('rdStage').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    rd.v.W = r.width; rd.v.H = r.height;
+    rdCanvas.width = Math.round(r.width * dpr); rdCanvas.height = Math.round(r.height * dpr);
+    rdCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    loupe.width = loupe.height = Math.round(132 * dpr);
+    const m = 28;
+    rd.v.k = Math.min((r.width - m * 2) / rd.px.w, (r.height - m * 2) / rd.px.h);
+    rd.v.ox = (r.width - rd.px.w * rd.v.k) / 2; rd.v.oy = (r.height - rd.px.h * rd.v.k) / 2;
+  }
+  const rdToScreen = p => ({ x: rd.v.ox + p.x * rd.v.k, y: rd.v.oy + p.y * rd.v.k });
+  const rdToImage = p => ({ x: (p.x - rd.v.ox) / rd.v.k, y: (p.y - rd.v.oy) / rd.v.k });
+
+  function rdUpdate() {
+    if (rd.raf) return;
+    rd.raf = requestAnimationFrame(() => {
+      rd.raf = 0;
+      rd.read = readBeads();
+      rdDraw(); rdPreview();
+    });
+  }
+  function rdDraw() {
+    const g = rdCtx, { W, H, k, ox, oy } = rd.v;
+    g.clearRect(0, 0, W, H);
+    g.drawImage(rd.img, ox, oy, rd.px.w * k, rd.px.h * k);
+    // 枠の外を少し暗くして、読み取る範囲をわかりやすくする
+    const sc = rd.corners.map(rdToScreen);
+    g.save();
+    g.beginPath(); g.rect(0, 0, W, H);
+    g.moveTo(sc[0].x, sc[0].y); [3, 2, 1].forEach(i => g.lineTo(sc[i].x, sc[i].y)); g.closePath();
+    g.fillStyle = 'rgba(30,10,20,.35)'; g.fill('evenodd');
+    g.restore();
+    g.lineWidth = 2; g.strokeStyle = '#FFFFFF';
+    g.beginPath(); sc.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.stroke();
+    // 読み取る位置の点。読み取った色で塗る（空きマスは白い輪）
+    const { grid, centers } = rd.read;
+    for (let i = 0; i < centers.length; i++) {
+      const c = rdToScreen(centers[i]), r = Math.max(2.2, Math.min(6, centers[i].pitch * k * 0.24));
+      g.beginPath(); g.arc(c.x, c.y, r, 0, Math.PI * 2);
+      if (grid[i] >= 0) { g.fillStyle = PAL[grid[i]].h; g.fill(); g.lineWidth = 0.8; g.strokeStyle = 'rgba(0,0,0,.55)'; g.stroke(); }
+      else { g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(c.x, c.y, r * 0.6, 0, Math.PI * 2); g.stroke(); }
+    }
+    // 角のつまみ（指で押しやすい大きさ）
+    sc.forEach((p, i) => {
+      g.beginPath(); g.arc(p.x, p.y, 16, 0, Math.PI * 2);
+      g.fillStyle = i === rd.drag ? 'rgba(238,79,134,.45)' : 'rgba(255,255,255,.35)'; g.fill();
+      g.lineWidth = 3; g.strokeStyle = '#EE4F86'; g.stroke();
+      g.beginPath(); g.arc(p.x, p.y, 3, 0, Math.PI * 2); g.fillStyle = '#EE4F86'; g.fill();
+    });
+  }
+  function rdPreview() {
+    const cv = $('rdPreview'), dpr = window.devicePixelRatio || 1, size = Math.round(96 * dpr);
+    cv.width = cv.height = size;
+    const g = cv.getContext('2d'), { grid } = rd.read, c = Math.max(1, Math.floor(size / Math.max(rd.cols, rd.rows)));
+    const ox = (size - rd.cols * c) / 2, oy = (size - rd.rows * c) / 2;
+    g.clearRect(0, 0, size, size);
+    for (let y = 0; y < rd.rows; y++) for (let x = 0; x < rd.cols; x++) {
+      const p = grid[y * rd.cols + x];
+      if (p >= 0) { g.fillStyle = PAL[p].h; g.fillRect(ox + x * c, oy + y * c, c, c); }
+    }
+  }
+  /** 角を動かしているあいだ、指で隠れる場所を3倍にして見せる */
+  function rdLoupe() {
+    const p = rd.corners[rd.drag], f = (rd.img.naturalWidth || rd.img.width) / rd.px.w;
+    const L = loupe.width, span = 132 / (rd.v.k * 3);
+    loupeCtx.clearRect(0, 0, L, L);
+    loupeCtx.save(); loupeCtx.beginPath(); loupeCtx.arc(L / 2, L / 2, L / 2, 0, Math.PI * 2); loupeCtx.clip();
+    loupeCtx.drawImage(rd.img, (p.x - span / 2) * f, (p.y - span / 2) * f, span * f, span * f, 0, 0, L, L);
+    loupeCtx.strokeStyle = '#EE4F86'; loupeCtx.lineWidth = 2 * (L / 132);
+    loupeCtx.beginPath(); loupeCtx.moveTo(L / 2, L * 0.3); loupeCtx.lineTo(L / 2, L * 0.7); loupeCtx.moveTo(L * 0.3, L / 2); loupeCtx.lineTo(L * 0.7, L / 2); loupeCtx.stroke();
+    loupeCtx.restore();
+    const left = rdToScreen(p).x > rd.v.W / 2;
+    loupe.style.left = left ? '12px' : ''; loupe.style.right = left ? '' : '12px';
+    loupe.hidden = false;
+  }
+
+  function rdSetCounts(cols, rows) {
+    rd.cols = Math.max(3, Math.min(58, Math.round(cols) || 3));
+    rd.rows = Math.max(3, Math.min(58, Math.round(rows) || 3));
+    $('rdCols').value = rd.cols; $('rdRows').value = rd.rows;
+    rdUpdate();
+  }
+  function openReader(file) {
+    if (!file || !file.type.startsWith('image/')) { toast('画像ファイルをえらんでください'); return; }
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      rd.img = img; rd.url = url; rd.name = file.name || '写真';
+      rd.px = readPixels(img, 2048);
+      const { w, h } = rd.px, mx = w * 0.1, my = h * 0.1;
+      rd.corners = [{ x: mx, y: my }, { x: w - mx, y: my }, { x: w - mx, y: h - my }, { x: mx, y: h - my }];
+      if (!rd.open) {
+        rd.open = true;
+        $('reader').hidden = false; document.body.classList.add('locked');
+        try { history.pushState({ reader: 1 }, ''); rd.pushed = true; } catch { rd.pushed = false; }
+      }
+      $('rdHint').classList.remove('gone');
+      rdLayout();
+      const est = rdAutoCount();
+      rdSetCounts(est.cols, est.rows);
+      $('rdApply').focus();
+    };
+    img.onerror = () => toast('この画像は読み込めませんでした');
+    img.src = url;
+  }
+  function closeReader(fromPop = false) {
+    if (!rd.open) return;
+    rd.open = false; loupe.hidden = true;
+    $('reader').hidden = true; document.body.classList.remove('locked');
+    if (rd.pushed && !fromPop) { rd.pushed = false; try { history.back(); } catch {} }
+    rd.pushed = false;
+  }
+  function applyReader() {
+    const read = rd.read || readBeads();
+    if (!read.grid.some(v => v >= 0)) { toast('ビーズが見つかりませんでした。角の位置と粒数を確かめてください'); return; }
+    const img = rd.img, url = rd.url, name = rd.name, cols = rd.cols, rows = rd.rows;
+    closeReader();
+    // 前の図案に「もどす」で戻れるように残す（作り直すときの確認も出るようになる）
+    record();
+    S.src = img; S.srcData = readPixels(img); S.minCover = 0.5;
+    $('thumb').src = url; $('srcName').textContent = `ビーズ写真: ${name}`;
+    S.width = cols; S.cols = cols; S.rows = rows; S.grid = read.grid;
+    S.animStart = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : performance.now();
+    layout(); refreshMeta(); syncControls(); loop();
+    toast(`${cols}×${rows}粒を読み取りました`);
+  }
+
+  rdCanvas.addEventListener('pointerdown', e => {
+    if (!rd.open) return;
+    const r = rdCanvas.getBoundingClientRect(), p = { x: e.clientX - r.left, y: e.clientY - r.top };
+    let best = -1, bd = 40;
+    rd.corners.forEach((c, i) => { const s = rdToScreen(c), d = Math.hypot(s.x - p.x, s.y - p.y); if (d < bd) { bd = d; best = i; } });
+    if (best < 0) return;
+    e.preventDefault();
+    try { rdCanvas.setPointerCapture(e.pointerId); } catch {}
+    const s = rdToScreen(rd.corners[best]);
+    rd.drag = best; rd.grab = { dx: s.x - p.x, dy: s.y - p.y };
+    $('rdHint').classList.add('gone');
+    rdLoupe(); rdDraw();
+  });
+  rdCanvas.addEventListener('pointermove', e => {
+    if (rd.drag < 0) return;
+    const r = rdCanvas.getBoundingClientRect();
+    const q = rdToImage({ x: e.clientX - r.left + rd.grab.dx, y: e.clientY - r.top + rd.grab.dy });
+    rd.corners[rd.drag] = { x: Math.max(0, Math.min(rd.px.w - 1, q.x)), y: Math.max(0, Math.min(rd.px.h - 1, q.y)) };
+    rdLoupe(); rdUpdate();
+  });
+  const rdEnd = () => { if (rd.drag < 0) return; rd.drag = -1; loupe.hidden = true; rdUpdate(); };
+  rdCanvas.addEventListener('pointerup', rdEnd);
+  rdCanvas.addEventListener('pointercancel', rdEnd);
+  document.querySelectorAll('.stepper button').forEach(b => b.addEventListener('click', () => {
+    const d = +b.dataset.d;
+    if (b.dataset.k === 'cols') rdSetCounts(rd.cols + d, rd.rows); else rdSetCounts(rd.cols, rd.rows + d);
+  }));
+  $('rdCols').addEventListener('change', e => rdSetCounts(+e.target.value, rd.rows));
+  $('rdRows').addEventListener('change', e => rdSetCounts(rd.cols, +e.target.value));
+  $('rdAuto').addEventListener('click', () => {
+    const est = rdAutoCount(); rdSetCounts(est.cols, est.rows);
+    toast(`横${est.cols}・縦${est.rows}と数えました。点がビーズに乗っているか確かめてね`);
+  });
+  $('rdBg').addEventListener('change', rdUpdate);
+  $('rdLevels').addEventListener('change', rdUpdate);
+  $('rdCancel').addEventListener('click', () => closeReader());
+  $('rdApply').addEventListener('click', () => confirmRebuild(applyReader, () => {}));
+  $('readFile').addEventListener('change', e => { openReader(e.target.files[0]); e.target.value = ''; });
+  $('rdFile').addEventListener('change', e => { openReader(e.target.files[0]); e.target.value = ''; });
+  window.addEventListener('popstate', () => { if (rd.open) closeReader(true); });
+  new ResizeObserver(() => { if (rd.open) { rdLayout(); rdUpdate(); } }).observe($('rdStage'));
+  if (window.__pochittoTest) window.__pochittoTest.reader = { rd, update: rdUpdate, autoCount: rdAutoCount };
+
   // ---- AI とおしゃべりでつくる ----
   // AI に「ページの道具」を渡し、AI が道具を呼ぶと、このページの中で図案が変わる
   const SYM_INDEX = new Map(PAL.map((p, i) => [p.sym, i]));
@@ -1313,6 +1697,7 @@ ${PAL.map(p => `${p.sym} ${p.n} ${p.h}`).join('\n')}
 - お願いに「ついている画像」とあれば、その画像を見てこたえる。画像は「画像1」「画像2」…の順番。
 - 写真やこまかい絵を図案にするときは、画像をよく見て、特徴（形・色・目や模様）をつかんだシンプルなイラストを draw_picture で描く。
 - もとの画像がもともとドット絵や、色の少ないシンプルなイラストで「そのまま」がよいときだけ、convert_image を使う。
+- 写真が「できあがったアイロンビーズ作品」（プレートの上のビーズ）のときは、convert_image も draw_picture も使わず、「画像をえらぶ」の下の「ビーズ作品の写真から読み取る」ボタンを使うとビーズ1粒ずつ正確に読み取れる、とやさしく案内する。
 - 画像を参考に一部を描き足すとき（「この絵みたいなリボンをつけて」など）は、set_cells や draw_rows で描く。
 - 「いまの図案の画像」がついているときは、それが今の図案の見た目（灰色の市松模様は空きマス）。形を確かめるのに使う。
 - 画像に写っている人について、だれなのかを推測したり言ったりしない。
